@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+# Project specific
+_old/
+Debug/
+Release/
+*.plg
+*.opt
+*.ncb

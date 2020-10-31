@@ -1,0 +1,3 @@
+LIBRARY "ltmsg"
+EXPORTS
+GetD3D7FixVersion = GetD3D7FixVersion @1
