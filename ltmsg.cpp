@@ -22,16 +22,14 @@ void GetD3D7FixVersion(char* szBuffer, BOOL bFullInfo)
 
 void ReadConfig(char* szFilename, char* szProfile)
 {
-	DWORD dwTemp;
-	
-	dwTemp = GetPrivateProfileInt("Global", GetCurrProfileOption(PO_DGVOODOO_MODE), FALSE, szFilename);
-	SetCurrProfileBool(PO_DGVOODOO_MODE, dwTemp);
-	
+	char szSection[2048];
+	DWORD dwSectionSize = GetPrivateProfileSection("Global", szSection, 2048, szFilename);
+	SectionToCurrProfileBool(szSection, PO_DGVOODOO_MODE, FALSE);
+
 	if (!szProfile)
 		szProfile = "Clean";
-
-	char szSection[2048];
-	DWORD dwSectionSize = GetPrivateProfileSection(szProfile, szSection, 2048, szFilename);
+	
+	dwSectionSize = GetPrivateProfileSection(szProfile, szSection, 2048, szFilename);
 	if (!dwSectionSize)
 	{
 		szProfile = "Clean";
@@ -71,6 +69,8 @@ void ReadConfig(char* szFilename, char* szProfile)
 	SectionToCurrProfileBool(szSection, PO_PRELOAD_STATIC_LIGHT, FALSE);
 	SectionToCurrProfileBool(szSection, PO_STATIC_LIGHT_SURFACES, FALSE);
 	SectionToCurrProfileBool(szSection, PO_DYNAMIC_LIGHT_SURFACES, FALSE);
+	SectionToCurrProfileBool(szSection, PO_FULLSCREEN_OPTIMIZE, FALSE);
+	SectionToCurrProfileBool(szSection, PO_NOVSYNC, FALSE);	
 	SectionToCurrProfileBool(szSection, PO_MISC_CC, FALSE);
 	SectionToCurrProfileBool(szSection, PO_RAW_MOUSE_INPUT, FALSE);
 	SetCurrProfileFlag(PO_RAW_MOUSE_INPUT, GetCurrProfileBool(PO_RAW_MOUSE_INPUT));
@@ -78,12 +78,17 @@ void ReadConfig(char* szFilename, char* szProfile)
 	SectionToCurrProfileFloat(szSection, PO_RMI_SCALE_GLOBAL, 0.001f);
 	SectionToCurrProfileFloat(szSection, PO_RMI_SCALE_Y, 1.1f);
 
+	SectionToCurrProfileBool(szSection, PO_POSTPROCESS_ENABLED, FALSE);
+	SectionToCurrProfileDWord(szSection, PO_POSTPROCESS_INTENSITY, 32);
+	SectionToCurrProfileDWord(szSection, PO_POSTPROCESS_INTENSITY_MENU, 16);
+
 	if (GetCurrProfileBool(PO_DGVOODOO_MODE))
 	{
 		SetCurrProfileBool(PO_INTEL_HD, FALSE);
 		SetCurrProfileBool(PO_RADEON_5700, FALSE);
 		SetCurrProfileBool(PO_LIGHT_LOAD, FALSE);
 		SetCurrProfileBool(PO_TWM_DETAIL_TEX, FALSE);
+		SetCurrProfileBool(PO_FULLSCREEN_OPTIMIZE, FALSE);
 	}
 
 	LogCurrProfile();
@@ -739,6 +744,7 @@ void HookEngineStuff2()
 		g_pLTClient->RunConsoleString("MaxModelLights 10");
 		g_pLTClient->RunConsoleString("NearZ 4");
 		g_pLTClient->RunConsoleString("ReallyCloseNearZ 0.01");
+		//g_pLTClient->RunConsoleString("TripleBuffer 0");
 	}
 	
 	BYTE nNew = 0x03;

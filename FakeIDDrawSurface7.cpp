@@ -46,9 +46,61 @@ void FrameLimiter()
 	QueryPerformanceCounter(&liStart);
 }
 
-FakeIDDrawSurface7Prime::FakeIDDrawSurface7Prime(LPDIRECTDRAWSURFACE7 pOriginal)
+HRESULT __stdcall MyEnumCallbackCompat(LPDIRECTDRAWSURFACE7 lpDDSurface, LPDDSURFACEDESC2 lpDDSurfaceDesc, LPVOID lpContext)
 {
-	m_pIDDrawSurface = pOriginal;
+	FakeIDDrawSurface7Prime* pPrime = (FakeIDDrawSurface7Prime*)lpContext;
+	if (pPrime->GetCompat() != lpDDSurface)
+	{
+		if (lpDDSurfaceDesc->ddsCaps.dwCaps & DDSCAPS_BACKBUFFER)
+			pPrime->SetCompatBB(lpDDSurface);
+		else
+			pPrime->SetCompatTB(lpDDSurface);
+		
+		lpDDSurface->EnumAttachedSurfaces(lpContext, MyEnumCallbackCompat);
+	}
+	
+	lpDDSurface->Release();
+	
+	return DDENUMRET_OK;
+}
+
+HRESULT __stdcall MyEnumCallbackReal(LPDIRECTDRAWSURFACE7 lpDDSurface, LPDDSURFACEDESC2 lpDDSurfaceDesc, LPVOID lpContext)
+{
+	FakeIDDrawSurface7Prime* pPrime = (FakeIDDrawSurface7Prime*)lpContext;
+	if (pPrime->GetReal() != lpDDSurface)
+	{
+		if (lpDDSurfaceDesc->ddsCaps.dwCaps & DDSCAPS_BACKBUFFER)
+			pPrime->SetRealBB(lpDDSurface);
+		else
+			pPrime->SetRealTB(lpDDSurface);
+		
+		lpDDSurface->EnumAttachedSurfaces(lpContext, MyEnumCallbackReal);
+	}
+	
+	lpDDSurface->Release();
+
+	return DDENUMRET_OK;
+}
+
+
+FakeIDDrawSurface7Prime::FakeIDDrawSurface7Prime(LPDIRECTDRAWSURFACE7 pOriginal, LPDIRECTDRAWSURFACE7 pCompat)
+{
+	if (pCompat)
+	{
+		m_pIDDrawSurface = pCompat;
+		m_pIDDrawSurface->EnumAttachedSurfaces(this, MyEnumCallbackCompat);
+		m_pIDDrawSurfaceReal = pOriginal;
+		m_pIDDrawSurfaceReal->EnumAttachedSurfaces(this, MyEnumCallbackReal);
+	}
+	else
+	{
+		m_pIDDrawSurface = pOriginal;
+		m_pIDDrawSurfaceBB = NULL;
+		m_pIDDrawSurfaceTB = NULL;
+		m_pIDDrawSurfaceReal = NULL;
+		m_pIDDrawSurfaceRealBB = NULL;
+		m_pIDDrawSurfaceRealTB = NULL;
+	}
 }
 
 
@@ -76,6 +128,9 @@ ULONG FakeIDDrawSurface7Prime::AddRef(void)
 ULONG FakeIDDrawSurface7Prime::Release(void)
 {
 	ULONG dwCount = m_pIDDrawSurface->Release();
+
+	if (m_pIDDrawSurfaceReal)
+		m_pIDDrawSurfaceReal->Release();
 	
 	if (dwCount == 0) 
 	{		
@@ -108,14 +163,32 @@ HRESULT FakeIDDrawSurface7Prime::AddOverlayDirtyRect(LPRECT a)
 
 HRESULT FakeIDDrawSurface7Prime::Blt(LPRECT a,LPDIRECTDRAWSURFACE7 b, LPRECT c,DWORD d, LPDDBLTFX e)
 {
-	/*if (g_dwWindowed && g_ddsBackBuffer == b)
-	{
-		FrameLimiter();
-	}*/
-
 	FrameLimiter();
 
-	return(m_pIDDrawSurface->Blt(a, b, c, d, e));	
+	if (g_bWindowed || !m_pIDDrawSurfaceReal)
+	{
+		return m_pIDDrawSurface->Blt(a, b, c, d, e);
+	}
+	else
+	{
+		/*if (!m_pIDDrawSurfaceReal)
+		{
+			return m_pIDDrawSurface->Flip(NULL, FLIP_FLAGS);
+		}
+		else*/
+		{
+			if (GetCurrProfileBool(PO_NOVSYNC))
+			{
+				return m_pIDDrawSurfaceReal->Blt(a, b, c, d, e);
+			}
+			else
+			{
+				m_pIDDrawSurfaceRealBB->Blt(a, b, c, d, e);
+				m_pIDDrawSurface->Flip(NULL, FLIP_FLAGS);
+				return m_pIDDrawSurfaceReal->Flip(NULL, FLIP_FLAGS);
+			}
+		}
+	}
 }
 
 

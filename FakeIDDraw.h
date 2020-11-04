@@ -82,7 +82,7 @@ public:
 class FakeIDDrawSurface7Prime : public IDirectDrawSurface7
 {
 public:
-	FakeIDDrawSurface7Prime(LPDIRECTDRAWSURFACE7 pOriginal);
+	FakeIDDrawSurface7Prime(LPDIRECTDRAWSURFACE7 pOriginal, LPDIRECTDRAWSURFACE7 pCompat);
     virtual ~FakeIDDrawSurface7Prime(void);
 	
 	// The original DDraw function definitions BEGIN
@@ -141,8 +141,24 @@ public:
     HRESULT  __stdcall GetPriority(LPDWORD a);
     HRESULT  __stdcall SetLOD(DWORD a);
     HRESULT  __stdcall GetLOD(LPDWORD a);
+
+	LPDIRECTDRAWSURFACE7 GetCompat(){ return m_pIDDrawSurface; }	
+	LPDIRECTDRAWSURFACE7 GetReal(){ return m_pIDDrawSurfaceReal; }
+
+	void SetCompatBB(LPDIRECTDRAWSURFACE7 pSet) { m_pIDDrawSurfaceBB = pSet; }
+	void SetCompatTB(LPDIRECTDRAWSURFACE7 pSet) { m_pIDDrawSurfaceTB = pSet; }
+	
+	void SetRealBB(LPDIRECTDRAWSURFACE7 pSet) { m_pIDDrawSurfaceRealBB = pSet; }
+	void SetRealTB(LPDIRECTDRAWSURFACE7 pSet) { m_pIDDrawSurfaceRealTB = pSet; }
+
+private:
 	
    	LPDIRECTDRAWSURFACE7 FAR m_pIDDrawSurface;
+	LPDIRECTDRAWSURFACE7 FAR m_pIDDrawSurfaceBB;
+	LPDIRECTDRAWSURFACE7 FAR m_pIDDrawSurfaceTB;
+	LPDIRECTDRAWSURFACE7 FAR m_pIDDrawSurfaceReal;
+	LPDIRECTDRAWSURFACE7 FAR m_pIDDrawSurfaceRealBB;
+	LPDIRECTDRAWSURFACE7 FAR m_pIDDrawSurfaceRealTB;
 };
 
 HRESULT __stdcall FakeIDDrawSurface7LM_Blt(LPDIRECTDRAWSURFACE7 f, LPRECT a,LPDIRECTDRAWSURFACE7 b, LPRECT c,DWORD d, LPDDBLTFX e);

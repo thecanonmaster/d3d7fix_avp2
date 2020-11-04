@@ -7,7 +7,7 @@ BOOL g_bDrawFPS = TRUE;
 DWORD g_dwWidth = 1024;
 DWORD g_dwHeight = 768;
 BOOL g_bWindowedSet = FALSE;
-DWORD g_bWindowed = 0;
+BOOL g_bWindowed = FALSE;
 LPDIRECTDRAWSURFACE7 g_ddsBackBuffer = NULL;
 LPDIRECT3DDEVICE7 g_d3dDevice = NULL;
 LPDIRECTDRAW7 g_ddMainDDraw = NULL;
@@ -46,8 +46,13 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "Fix_DynamicLightSurfaces"),
 	ProfileOption(POT_BYTE, "Fix_StaticLightSurfaces"),
 	ProfileOption(POT_BYTE, "Fix_PreloadStaticLight"),
+	ProfileOption(POT_BYTE, "Fix_FullscreenOptimize"),
+	ProfileOption(POT_BYTE, "NoVSync"),
 	ProfileOption(POT_FLOAT, "RMI_ScaleGlobal"),
 	ProfileOption(POT_FLOAT, "RMI_ScaleY"),
+	ProfileOption(POT_BYTE, "PP_Enabled"),
+	ProfileOption(POT_DWORD, "PP_Intensity"),
+	ProfileOption(POT_DWORD, "PP_IntensityMenu"),
 };
 
 FontList g_FontList;
@@ -401,12 +406,17 @@ void CreateIntroductionSurface()
 	szIntro[2] = szDescription;
 	szIntro[3] = "Page Up - borderless window toggle";
 	szIntro[4] = "Page Down - draw FPS counter toggle";
+
+#ifdef _DEBUG
+	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x006666FF, 0x00FFFF00, 0x00FFFF00, 0x00FFFFFF, 0x00FFFFFF };
+#else	
 	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x0000FF00, 0x00FFFF00, 0x00FFFF00, 0x00FFFFFF, 0x00FFFFFF };
+#endif
 
 	if (GetCurrProfileBool(PO_CLEAN_MODE)) 
 		dwColorMap[1] = 0x00FF0000;
 
-	DWORD hFont = g_pLTClient->CreateFont("Terminal", INTRODUCTION_FONT_WIDTH, INTRODUCTION_FONT_HEIGHT, FALSE, FALSE, FALSE);
+	DWORD hFont = g_pLTClient->CreateFont("Terminal", INTRODUCTION_FONT_WIDTH, INTRODUCTION_FONT_HEIGHT, FALSE, TRUE, FALSE);
 	
 	for (int i = 0; i < INTRODUCTION_LINES; i++)
 	{

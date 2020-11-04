@@ -31,8 +31,13 @@ enum eProfileOption
 	PO_DYNAMIC_LIGHT_SURFACES,
 	PO_STATIC_LIGHT_SURFACES,
 	PO_PRELOAD_STATIC_LIGHT,
+	PO_FULLSCREEN_OPTIMIZE,
+	PO_NOVSYNC,
 	PO_RMI_SCALE_GLOBAL,
 	PO_RMI_SCALE_Y,
+	PO_POSTPROCESS_ENABLED,
+	PO_POSTPROCESS_INTENSITY,
+	PO_POSTPROCESS_INTENSITY_MENU,
 	PO_MAX,
 };
 
@@ -81,7 +86,7 @@ extern BOOL g_bDrawFPS;
 extern DWORD g_dwWidth;
 extern DWORD g_dwHeight;
 extern BOOL g_bWindowedSet;
-extern DWORD g_bWindowed;
+extern BOOL g_bWindowed;
 extern LPDIRECTDRAWSURFACE7 g_ddsBackBuffer;
 extern LPDIRECT3DDEVICE7 g_d3dDevice;
 extern LPDIRECTDRAW7 g_ddMainDDraw;
@@ -95,8 +100,12 @@ extern LONG g_lRMILastY;
 
 extern int g_nLastFrameRate;
 
-#define APP_NAME		"D3D7FIX v%.2f for Aliens vs Predator 2 (ltmsg.dll)"
-#define APP_VERSION		0.21f
+#ifdef _DEBUG
+	#define APP_NAME		"D3D7FIX v%.2f for Aliens vs Predator 2 (ltmsg.dll, DEBUG)"
+#else
+	#define APP_NAME		"D3D7FIX v%.2f for Aliens vs Predator 2 (ltmsg.dll)"
+#endif
+#define APP_VERSION		0.30f
 #define CVAR_PROFILE	"D3D7FixProfile"
 
 #define FONT_LIST_UPDATE_TIME		5.0f
@@ -126,6 +135,8 @@ extern int g_nLastFrameRate;
 
 #define OT_LIGHT 4
 #define FLAG_DONTLIGHTBACKFACING	(1<<6)
+
+#define FLIP_FLAGS	(/*DDFLIP_NOVSYNC | */DDFLIP_WAIT)
 
 #define TLVERTEX (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_SPECULAR  | D3DFVF_TEX1 )
 

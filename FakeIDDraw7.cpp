@@ -248,7 +248,29 @@ HRESULT  __stdcall FakeIDDraw7::CreateSurface(LPDDSURFACEDESC2 lpDDSurfaceDesc2,
 
 	if((lpDDSurfaceDesc2->dwFlags & DDSD_CAPS) && (lpDDSurfaceDesc2->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE))  
 	{
-		*lplpDDSurface = new FakeIDDrawSurface7Prime(*lplpDDSurface);
+		LPDIRECTDRAWSURFACE7 pCompatSurface = NULL;
+
+		if (GetCurrProfileBool(PO_FULLSCREEN_OPTIMIZE) && !g_bWindowed)
+		{
+			DDSURFACEDESC2 compatDesc, displayDesc;
+			displayDesc.dwSize = sizeof(DDSURFACEDESC2);
+			
+			m_pIDDraw->GetDisplayMode(&displayDesc);
+			
+			compatDesc = *lpDDSurfaceDesc2;
+			compatDesc.dwFlags |= DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT;
+			compatDesc.dwWidth = g_dwWidth;
+			compatDesc.dwHeight = g_dwHeight;
+			compatDesc.ddsCaps.dwCaps &= ~DDSCAPS_PRIMARYSURFACE;
+			compatDesc.ddsCaps.dwCaps |= DDSCAPS_OFFSCREENPLAIN;
+			//compatDesc.ddsCaps.dwCaps2 |= DDCAPS2_FLIPNOVSYNC;
+			compatDesc.ddpfPixelFormat = displayDesc.ddpfPixelFormat; 
+
+			HRESULT hCompatResult = m_pIDDraw->CreateSurface(&compatDesc, &pCompatSurface, pUnkOuter);
+			logf("Compatibility primary surface creation result = %08x", hCompatResult);
+		}
+		
+		*lplpDDSurface = new FakeIDDrawSurface7Prime(*lplpDDSurface, pCompatSurface);
 	}
 
 	return hResult;
