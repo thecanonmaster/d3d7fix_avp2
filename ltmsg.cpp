@@ -729,6 +729,28 @@ void HookEngineStuff1()
 	DIEnumDevicesCallback = (DIEnumDevicesCallback_type)dwRead;
 }
 
+typedef DWORD (__fastcall *ILTLightAnim_SetLightAnimInfo_type)(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info);
+DWORD (__fastcall *ILTLightAnim_SetLightAnimInfo)(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info);
+DWORD __fastcall MyILTLightAnim_SetLightAnimInfo(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info)
+{
+	if (!info.m_iFrames[0] && !info.m_iFrames[1])
+	{
+		float fMod = (1.0f - ((float)GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY) / 255.0f)) * 1.5f;
+		if (fMod < 0.1f)
+			fMod = 0.1f;
+		else if (fMod > 1.0f) 
+			fMod = 1.0f;
+
+		info.m_fBlendPercent *= fMod;	
+	}
+	else
+	{
+		info.m_fBlendPercent = 1.0f;
+	}
+
+	return ILTLightAnim_SetLightAnimInfo(pInterface, pEDX, hLightAnim, info);
+}
+
 void HookEngineStuff2()
 {
 	logf("Hooking engine stuff #2");
@@ -786,6 +808,10 @@ void HookEngineStuff2()
 			//g_pLTClient->ScaleSurfaceToSurface = MyScaleSurfaceToSurface;
 			d3d_BlitToScreen = (d3d_BlitToScreen_type)(dwDllAddress + 0x1DE1C);
 			EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + 0x58470) + 0xF4), (DWORD)My_d3d_BlitToScreen, dwRead);
+
+			pOrigTable = (DWORD*)*(DWORD*)g_pLTClient->m_pLightAnimLT;	
+			ILTLightAnim_SetLightAnimInfo = (ILTLightAnim_SetLightAnimInfo_type)pOrigTable[3];
+			EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 3), (DWORD)MyILTLightAnim_SetLightAnimInfo, dwRead);
 		}
 	}
 	

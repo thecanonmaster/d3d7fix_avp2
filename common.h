@@ -155,6 +155,21 @@ struct LTRect
 	int bottom;
 };
 
+struct LTVector
+{
+	float x;
+	float y;
+	float z;
+};
+
+struct LTRotation
+{
+	float x;
+	float y;
+	float z;
+	float w;
+};
+
 union GenericColor 
 {
     DWORD  dwVal;
@@ -337,12 +352,56 @@ public:
 };
 
 #define MAX_RESTREES            20
+#define INVALID_LIGHT_ANIM	0xFFFFFFFF
+#define LIGHTANIMFRAME_NONE	0xFFFFFFFF
+
+class LAInfo
+{
+public:
+	
+	BOOL		m_bShadowMap;		
+	DWORD		m_iFrames[2];
+	float		m_fPercentBetween;
+	float		m_fBlendPercent;
+	LTVector	m_vLightPos;
+	LTVector	m_vLightColor;
+	float		m_fLightRadius;
+};
+
+class ILTLightAnim
+{
+public:
+	virtual DWORD FindLightAnim(const char *pName, DWORD &hLightAnim)=0;
+	virtual DWORD GetNumFrames(DWORD hLightAnim, DWORD &nFrames)=0;
+	virtual DWORD GetLightAnimInfo(DWORD hLightAnim, LAInfo &info)=0;
+	virtual DWORD SetLightAnimInfo(DWORD hLightAnim, LAInfo &info)=0;
+};
+
+class ILTMath
+{
+public:
+	
+	virtual DWORD GetRotationVectors(LTRotation &rot, LTVector &right, LTVector &up, LTVector &forward);
+
+	// More stuff there
+};
 
 class ILTCSBase
 {
 public:
 
 	virtual DWORD StartHMessageWrite()=0;
+	// More stuff there
+
+//protected:
+	
+	ILTMath			m_MathLT;
+	void			*m_pCommonLT;
+	void			*m_pPhysicsLT;
+	void			*m_pModelLT;
+	void			*m_pTransformLT;
+	ILTLightAnim	*m_pLightAnimLT;
+	void			*m_pSoundMgr;
 };
 
 typedef void (__cdecl *ILTCSBase_CPrint_type)(ILTCSBase* pBase, char *pMsg, ...);
@@ -372,7 +431,7 @@ class ILTClient: public ILTCSBase
 {
 public:
 
-	BYTE			m_Data0[52];
+	BYTE			m_Data0[24]; // 52
 	void			(*Shutdown)();
 	void			(*ShutdownWithMessage)( char *pMsg, ... );
 	DWORD			(*FlipScreen)(DWORD flags);	

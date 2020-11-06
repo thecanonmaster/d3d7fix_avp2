@@ -407,7 +407,7 @@ void CreateIntroductionSurface()
 	szIntro[1] = szProfile;
 	sprintf(szDescription, "Profile description = %s", g_ProfileOptions[PO_DESCRIPTION].szValue);
 	szIntro[2] = szDescription;
-	sprintf(szPostprocess, "Postprocess enabled = %s", g_ProfileOptions[PO_POSTPROCESS_ENABLED].szValue ? "TRUE" : "FALSE");
+	sprintf(szPostprocess, "Postprocessing enabled = %s", g_ProfileOptions[PO_POSTPROCESS_ENABLED].bValue ? "TRUE" : "FALSE");
 	szIntro[3] = szPostprocess;
 	szIntro[4] = "Page Up - borderless window toggle";
 	szIntro[5] = "Page Down - draw FPS counter toggle";
@@ -650,13 +650,14 @@ void LogCurrProfile()
 
 void logf(char *msg, ...)
 {	
+	SYSTEMTIME now;
+	GetLocalTime(&now);
 	va_list argp;
 	
+	fprintf(g_LogFile,"\n[%02d:%02d:%02d.%03d] ", now.wHour, now.wMinute, now.wSecond, now.wMilliseconds);
 	va_start(argp, msg);
-	vfprintf(g_LogFile, msg, argp);
+	vfprintf(g_LogFile, msg, argp);	
 	va_end(argp);
-	
-	fprintf(g_LogFile,"\n");
 	
 	fflush(g_LogFile);
 }
