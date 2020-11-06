@@ -101,6 +101,8 @@ FakeIDDrawSurface7Prime::FakeIDDrawSurface7Prime(LPDIRECTDRAWSURFACE7 pOriginal,
 		m_pIDDrawSurfaceRealBB = NULL;
 		m_pIDDrawSurfaceRealTB = NULL;
 	}
+
+	PostProcessClear();
 }
 
 
@@ -163,6 +165,9 @@ HRESULT FakeIDDrawSurface7Prime::AddOverlayDirtyRect(LPRECT a)
 
 HRESULT FakeIDDrawSurface7Prime::Blt(LPRECT a,LPDIRECTDRAWSURFACE7 b, LPRECT c,DWORD d, LPDDBLTFX e)
 {
+	if (GetCurrProfileBool(PO_POSTPROCESS_ENABLED))
+		PostProcess(g_d3dDevice, b);
+	
 	FrameLimiter();
 
 	if (g_bWindowed || !m_pIDDrawSurfaceReal)

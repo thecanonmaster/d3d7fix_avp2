@@ -10,7 +10,8 @@ enum eProfileOptionType
 enum eProfileOption
 {
 	PO_DGVOODOO_MODE = 0,
-	PO_DESCRIPTION = 1,
+	PO_INTRODUCTION_TIME = 1,
+	PO_DESCRIPTION,
 	PO_CLEAN_MODE,
 	PO_DONT_SHUTDOWN_RENDERER,
 	PO_SHOW_FPS,
@@ -87,6 +88,7 @@ extern DWORD g_dwWidth;
 extern DWORD g_dwHeight;
 extern BOOL g_bWindowedSet;
 extern BOOL g_bWindowed;
+extern DWORD g_dwPPCurrIntensity;
 extern LPDIRECTDRAWSURFACE7 g_ddsBackBuffer;
 extern LPDIRECT3DDEVICE7 g_d3dDevice;
 extern LPDIRECTDRAW7 g_ddMainDDraw;
@@ -107,6 +109,12 @@ extern int g_nLastFrameRate;
 #endif
 #define APP_VERSION		0.30f
 #define CVAR_PROFILE	"D3D7FixProfile"
+#define CVAR_PROFILE_EX "D3D7FixProfileEx"
+
+#define LITHTECH_EXE	"lithtech.exe"
+#define D3D_REN			"d3d.ren"
+
+#define POSTPROCESSING_RES			256.0f
 
 #define FONT_LIST_UPDATE_TIME		5.0f
 #define FONT_LIST_CLEANUP_TIME		180.0f
@@ -116,8 +124,7 @@ extern int g_nLastFrameRate;
 
 #define INTRODUCTION_FONT_HEIGHT	18
 #define INTRODUCTION_FONT_WIDTH		10
-#define INTRODUCTION_TIME			30.0f
-#define INTRODUCTION_LINES			5
+#define INTRODUCTION_LINES			6
 
 #define FRAME_RATE_FONT_HEIGHT	5
 #define FRAME_RATE_FONT_WIDTH	3
@@ -139,6 +146,37 @@ extern int g_nLastFrameRate;
 #define FLIP_FLAGS	(/*DDFLIP_NOVSYNC | */DDFLIP_WAIT)
 
 #define TLVERTEX (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_SPECULAR  | D3DFVF_TEX1 )
+
+struct LTRect
+{
+	int left;
+	int top;
+	int right;
+	int bottom;
+};
+
+union GenericColor 
+{
+    DWORD  dwVal;
+    WORD   wVal;
+    BYTE   bVal;
+};
+
+#define DRAWMODE_NORMAL     1   // Render normally.
+#define DRAWMODE_OBJECTLIST 2   // Only render the objects in m_pObjectList.
+
+struct SceneDesc
+{
+    int             m_DrawMode; // +0
+	DWORD			*m_pTicks_Render_Objects;
+	DWORD			*m_pTicks_Render_Models;
+	DWORD			*m_pTicks_Render_Sprites;
+	DWORD			*m_pTicks_Render_WorldModels;
+	DWORD			*m_pTicks_Render_ParticleSystems;
+	DWORD			*m_pTicks_Render_Lights;
+	
+	// More stuff there
+};
 
 struct ObjectCreateStruct
 {
@@ -174,14 +212,6 @@ struct TLVertex
 };
 
 typedef std::list<SolidSurface*> SolidSurfaceList;*/
-
-struct LTRect
-{
-	int left;
-	int top;
-	int right;
-	int bottom;
-};
 
 struct FontString;
 typedef std::vector<FontString*> FSLines;
@@ -253,13 +283,6 @@ bool FontList_HandleEqualFn(const Font* pItem);
 void FontList_Update();
 void FontList_Clear(BOOL bDeleteSurfaces);
 
-union GenericColor 
-{
-    DWORD  dwVal;
-    WORD  wVal;
-    BYTE   bVal;
-};
-
 struct SurfaceTile
 {
 	void*					m_SrcImageRect;
@@ -286,29 +309,17 @@ struct RSurface
 
 class BlitRequest
 {
-public:
-	
-	BlitRequest()
-	{
-		m_hBuffer = NULL;
-		m_BlitOptions = 0;
-		m_pSrcRect = NULL;
-		m_pDestRect = NULL;
-		m_Alpha = 1.0f;
-	}
-	
 	
 public:
 	
 	DWORD		   m_hBuffer;         
 	DWORD          m_BlitOptions;      
 	GenericColor   m_TransparentColor; 
-	void*         *m_pSrcRect;        
-	void*         *m_pDestRect;       
+	LTRect         *m_pSrcRect;        
+	LTRect         *m_pDestRect;       
 	float          m_Alpha;           
 	
-	void*		   *m_pWarpPts;
-	int            m_nWarpPts;
+	// More stuff there
 };
 
 class CisSurface

@@ -8,6 +8,7 @@ DWORD g_dwWidth = 1024;
 DWORD g_dwHeight = 768;
 BOOL g_bWindowedSet = FALSE;
 BOOL g_bWindowed = FALSE;
+DWORD g_dwPPCurrIntensity = 0;
 LPDIRECTDRAWSURFACE7 g_ddsBackBuffer = NULL;
 LPDIRECT3DDEVICE7 g_d3dDevice = NULL;
 LPDIRECTDRAW7 g_ddMainDDraw = NULL;
@@ -25,6 +26,7 @@ LONG g_lRMILastY = 0;
 ProfileOption g_ProfileOptions[PO_MAX] = 
 {
 	ProfileOption(POT_BYTE, "DgVoodooMode"),
+	ProfileOption(POT_FLOAT, "IntroductionTime"),
 	ProfileOption(POT_STRING, "Misc_Description"),
 	ProfileOption(POT_BYTE, "Misc_CleanMode"),
 	ProfileOption(POT_BYTE, "Misc_DontShutdownRenderer"),
@@ -58,7 +60,7 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 FontList g_FontList;
 DWORD g_hWhitePixelSurface = NULL;
 float g_fIntroductionStartTime = 0.0f;
-DWORD g_hIntroductionSurface[INTRODUCTION_LINES] = { NULL, NULL, NULL, NULL, NULL };
+DWORD g_hIntroductionSurface[INTRODUCTION_LINES] = { NULL, NULL, NULL, NULL, NULL, NULL };
 DWORD g_hFrameRateFontSurface[10] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 int g_nLastFrameRate = 0;
 //SolidSurfaceList g_SolidSurfaceList;
@@ -396,6 +398,7 @@ void CreateIntroductionSurface()
 	char szTitle[64];
 	char szProfile[64];
 	char szDescription[256];
+	char szPostprocess[64];
 
 	char* szIntro[INTRODUCTION_LINES];
 	sprintf(szTitle, APP_NAME, APP_VERSION);
@@ -404,19 +407,21 @@ void CreateIntroductionSurface()
 	szIntro[1] = szProfile;
 	sprintf(szDescription, "Profile description = %s", g_ProfileOptions[PO_DESCRIPTION].szValue);
 	szIntro[2] = szDescription;
-	szIntro[3] = "Page Up - borderless window toggle";
-	szIntro[4] = "Page Down - draw FPS counter toggle";
+	sprintf(szPostprocess, "Postprocess enabled = %s", g_ProfileOptions[PO_POSTPROCESS_ENABLED].szValue ? "TRUE" : "FALSE");
+	szIntro[3] = szPostprocess;
+	szIntro[4] = "Page Up - borderless window toggle";
+	szIntro[5] = "Page Down - draw FPS counter toggle";
 
 #ifdef _DEBUG
-	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x006666FF, 0x00FFFF00, 0x00FFFF00, 0x00FFFFFF, 0x00FFFFFF };
+	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x006666FF, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF };
 #else	
-	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x0000FF00, 0x00FFFF00, 0x00FFFF00, 0x00FFFFFF, 0x00FFFFFF };
+	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x0000FF00, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF };
 #endif
 
 	if (GetCurrProfileBool(PO_CLEAN_MODE)) 
 		dwColorMap[1] = 0x00FF0000;
 
-	DWORD hFont = g_pLTClient->CreateFont("Terminal", INTRODUCTION_FONT_WIDTH, INTRODUCTION_FONT_HEIGHT, FALSE, TRUE, FALSE);
+	DWORD hFont = g_pLTClient->CreateFont("Terminal", INTRODUCTION_FONT_WIDTH, INTRODUCTION_FONT_HEIGHT, FALSE, FALSE, FALSE);
 	
 	for (int i = 0; i < INTRODUCTION_LINES; i++)
 	{

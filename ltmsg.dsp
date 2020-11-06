@@ -132,6 +132,10 @@ SOURCE=.\main.def
 # End Source File
 # Begin Source File
 
+SOURCE=.\PostProcess.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\stdafx.cpp
 # End Source File
 # End Group
@@ -153,6 +157,10 @@ SOURCE=.\FakeIDDraw.h
 # Begin Source File
 
 SOURCE=.\numfont.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\PostProcess.h
 # End Source File
 # Begin Source File
 

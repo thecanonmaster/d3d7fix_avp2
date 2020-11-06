@@ -1,7 +1,5 @@
 #include "StdAfx.h"
 
-#define WIN32_LEAN_AND_MEAN	
-
 typedef HRESULT (WINAPI* DirectDrawCreate_Type)(GUID FAR *, LPDIRECTDRAW FAR *, IUnknown FAR *);
 typedef HRESULT (WINAPI* DirectDrawCreateEx_Type)( GUID FAR *, LPVOID *, REFIID,IUnknown FAR *);
 HMODULE WINAPI MyLoadLibraryA(LPCSTR lpFileName);
@@ -25,6 +23,7 @@ void ReadConfig(char* szFilename, char* szProfile)
 	char szSection[2048];
 	DWORD dwSectionSize = GetPrivateProfileSection("Global", szSection, 2048, szFilename);
 	SectionToCurrProfileBool(szSection, PO_DGVOODOO_MODE, FALSE);
+	SectionToCurrProfileFloat(szSection, PO_INTRODUCTION_TIME, 30.0f);
 
 	if (!szProfile)
 		szProfile = "Clean";
@@ -91,6 +90,14 @@ void ReadConfig(char* szFilename, char* szProfile)
 		SetCurrProfileBool(PO_FULLSCREEN_OPTIMIZE, FALSE);
 	}
 
+	char* szProfileEx = NULL;
+	DWORD hProfileEx = g_pLTClient->GetConsoleVar(CVAR_PROFILE_EX);
+	if (hProfileEx)
+		szProfileEx = ILTCSBase_GetVarValueString(hProfileEx);
+	
+	if (szProfileEx)
+		ParseCVarProfile(szProfileEx);
+
 	LogCurrProfile();
 }
 
@@ -129,7 +136,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 void ApplyIntelHD_RHW_Fix()
 {
-	DWORD dwDLLAddress = (DWORD)GetModuleHandle("d3d.ren");
+	DWORD dwDLLAddress = (DWORD)GetModuleHandle(D3D_REN);
 	logf("Applying IntelHD RHW fix");
 	
 	float fIntelHDFix = 0.5f;
@@ -270,7 +277,7 @@ DWORD MyDrawSurfaceSolidColor(DWORD hDest, DWORD hSrc, LTRect *pSrcRect, int des
 			DWORD dwRet;
 			if (g_MultiLines.size())
 			{
-				int nSize = g_MultiLines.size();
+				//int nSize = g_MultiLines.size();
 				if (!g_MultiLinesIter)
 				{
 					dwRet = g_pLTClient->DrawSurfaceToSurfaceTransparent(hDest, hSrc, pSrcRect, destX, destY, hTransColor);	
@@ -405,7 +412,10 @@ void MyDrawStringToSurface(DWORD hDest, DWORD hFont, DWORD hString, LTRect* pRec
 	{
 		//OldDrawStringToSurface(g_pPrevFontString->m_hSurface, hFont, hString, pRect, hForeColor, hBackColor);	
 		if (std::find(g_MultiLines.begin(), g_MultiLines.end(), pString) == g_MultiLines.end())
+		{
+			g_MultiLinesIter = NULL;
 			g_MultiLines.push_back(pString);
+		}
 
 		g_pLTClient->SetSurfaceUserData(hOldDest, g_pPrevFontString);
 
@@ -514,7 +524,7 @@ void DrawIntroduction()
 
 void DrawFrameRate()
 {
-	/*DWORD dwDllAddress = (DWORD)GetModuleHandle("d3d.ren");
+	/*DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 	bool & g_bInOptimized2D = *(bool*)(dwDllAddress + 0x5DE44);
 	bool & g_bIn3D = *(bool*)(dwDllAddress + 0x5DE40);*/	
 	
@@ -632,8 +642,9 @@ DWORD (*OldEndOptimized2D)();
 DWORD MyEndOptimized2D()
 {
 	float fTime = ILTCSBase_GetTime(g_pLTClient);
+	float fIntroTime = GetCurrProfileFloat(PO_INTRODUCTION_TIME);
 
-	if (fTime - g_fIntroductionStartTime < INTRODUCTION_TIME)
+	if (fIntroTime && fTime - g_fIntroductionStartTime < fIntroTime)
 		DrawIntroduction();
 	
 	if (GetCurrProfileBool(PO_SHOW_FPS) && g_bDrawFPS)
@@ -666,13 +677,50 @@ DWORD MyCreateObject(ObjectCreateStruct *pStruct)
 	return OldCreateObject(pStruct);
 }
 
+typedef int (*d3d_RenderScene_type)(SceneDesc *pDesc);
+int (*d3d_RenderScene)(SceneDesc *pDesc);
+int My_d3d_RenderScene(SceneDesc* pDesc)
+{
+	if (pDesc->m_DrawMode == DRAWMODE_OBJECTLIST)
+		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_MENU);
+	else
+		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY);
+	
+	return d3d_RenderScene(pDesc);
+}
+
+/*DWORD (*OldScaleSurfaceToSurface)(DWORD hDest, DWORD hSrc, LTRect *pDestRect, LTRect *pSrcRect);
+DWORD MyScaleSurfaceToSurface(DWORD hDest, DWORD hSrc, LTRect *pDestRect, LTRect *pSrcRect)
+{
+	if (pDestRect && pDestRect->left == 0 && pDestRect->top == 0 && 
+		pDestRect->right == g_dwWidth && pDestRect->bottom == g_dwHeight)
+	{
+		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_MENU);
+	}
+
+	return OldScaleSurfaceToSurface(hDest, hSrc, pDestRect, pSrcRect);
+}*/
+
+typedef void (*d3d_BlitToScreen_type)(BlitRequest *pRequest);
+void (*d3d_BlitToScreen)(BlitRequest *pRequest);
+void My_d3d_BlitToScreen(BlitRequest *pRequest)
+{
+	if (pRequest->m_pDestRect && pRequest->m_pDestRect->left == 0 && pRequest->m_pDestRect->top == 0 && 
+		pRequest->m_pDestRect->right == g_dwWidth && pRequest->m_pDestRect->bottom == g_dwHeight)
+	{
+		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_MENU);
+	}	
+	
+	d3d_BlitToScreen(pRequest);
+}
+
 void HookEngineStuff1()
 {
 	logf("Hooking engine stuff #1");
 	
 	DWORD dwRead;
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwExeAddress = (DWORD)GetModuleHandle("lithtech.exe");
+	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
 	
 	EngineHack_WriteFunction(hProcess, (LPVOID)(dwExeAddress + 0x0C6100), (DWORD)MyLoadLibraryA, dwRead);
 
@@ -687,7 +735,8 @@ void HookEngineStuff2()
 
 	DWORD dwRead;
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwExeAddress = (DWORD)GetModuleHandle("lithtech.exe");
+	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 	g_pClientMgr = (CClientMgrBase*)(dwExeAddress + 0xDEFAC);
 	g_pServerMgr = (CServerMgrBase*)(dwExeAddress + 0xE5DC8);
 	g_pLTClient = g_pClientMgr->m_pClientMgr->m_pLTClient;
@@ -730,6 +779,14 @@ void HookEngineStuff2()
 		
 		IClientShell_Update = (IClientShell_Update_type)pOrigTable[15];
 		EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 15), (DWORD)MyIClientShell_Update, dwRead);
+
+		if (GetCurrProfileBool(PO_POSTPROCESS_ENABLED))
+		{
+			//OldScaleSurfaceToSurface = g_pLTClient->ScaleSurfaceToSurface;
+			//g_pLTClient->ScaleSurfaceToSurface = MyScaleSurfaceToSurface;
+			d3d_BlitToScreen = (d3d_BlitToScreen_type)(dwDllAddress + 0x1DE1C);
+			EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + 0x58470) + 0xF4), (DWORD)My_d3d_BlitToScreen, dwRead);
+		}
 	}
 	
 	//DWORD& g_CV_TraceConsole = *(DWORD*)(dwExeAddress + 0xE370C);
@@ -750,6 +807,9 @@ void HookEngineStuff2()
 	BYTE nNew = 0x03;
 	BYTE nOld;
 	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + 0x9B5B5), &nNew, &nOld, 1);
+
+	d3d_RenderScene = (d3d_RenderScene_type)(dwDllAddress + 0x17AA0);
+	EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + 0x58470) + 0xB8), (DWORD)My_d3d_RenderScene, dwRead);
 }
 
 void ApplyLightLoad_Fix()
@@ -757,7 +817,7 @@ void ApplyLightLoad_Fix()
 	logf("Applying light load fix");
 
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwDllAddress = (DWORD)GetModuleHandle("d3d.ren");
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 	//DWORD dwRenderStruct = dwDllAddress + 0x58470;
 
 	EngineHack_WriteCall(hProcess, (LPVOID)(DWORD(dwDllAddress) + 0x34CF2), (DWORD)FakeD3DDevice_Load, TRUE);
@@ -778,7 +838,7 @@ void ApplyTWMDetailTex_Fix()
 	logf("Applying TWM detail textures fix");
 
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwDllAddress = (DWORD)GetModuleHandle("d3d.ren");
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 
 	g_pDetailTextureCapable = (BOOL*)(dwDllAddress + 0x5DE2C);
 	sub_3F0A2A7 = (sub_3F0A2A7_type)(dwDllAddress + 0xA2A7);
@@ -845,7 +905,7 @@ void ApplyTimeCalibration_Fix()
 	logf("Applying time calibration fix");
 
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwExeAddress = (DWORD)GetModuleHandle("lithtech.exe");
+	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
 
 	dsi_ClientSleep = (dsi_ClientSleep_type)(dwExeAddress + 0x35070);
 	EngineHack_WriteCall(hProcess, (LPVOID)(dwExeAddress + 0x10E06), (DWORD)My_dsi_ClientSleep, FALSE);
@@ -884,7 +944,7 @@ void ApplyDynamicLightSurfaces_Fix()
 	logf("Applying dynamic light surfaces fix");
 	
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwDllAddress = (DWORD)GetModuleHandle("d3d.ren");
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 
 	DWORD* dwSurfaceCounts = (DWORD*)(dwDllAddress + 0x4BF50);
 	dwSurfaceCounts[0] = 256;
@@ -907,7 +967,7 @@ void ApplyStaticLightSurfaces_Fix()
 	logf("Applying static light surfaces fix");
 	
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwDllAddress = (DWORD)GetModuleHandle("d3d.ren");
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 	
 	r_FindFreeSlot = (r_FindFreeSlot_type)(dwDllAddress + 0x34000);
 	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x342FC), (DWORD)My_r_FindFreeSlot, FALSE);	
@@ -975,12 +1035,12 @@ HMODULE WINAPI MyLoadLibraryA(LPCSTR lpFileName)
 {
 	HMODULE hModule = LoadLibraryA(lpFileName);
 	
-	if (_stricmp(lpFileName, "d3d.ren") == 0)
-	{
+	if (_stricmp(lpFileName, D3D_REN) == 0)
+	{ 
 		HANDLE hProcess = GetCurrentProcess();
-		HMODULE hModule = GetModuleHandle("d3d.ren");
+		DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 		
-		EngineHack_WriteFunction(hProcess, (LPVOID)(DWORD(hModule) + 0x46000), (DWORD)FakeDirectDrawCreateEx, g_dwOriginalD3D);
+		EngineHack_WriteFunction(hProcess, (LPVOID)(dwDllAddress + 0x46000), (DWORD)FakeDirectDrawCreateEx, g_dwOriginalD3D);
 	}
 
 	return hModule;
