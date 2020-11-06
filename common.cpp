@@ -49,7 +49,7 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "Fix_StaticLightSurfaces"),
 	ProfileOption(POT_BYTE, "Fix_PreloadStaticLight"),
 	ProfileOption(POT_BYTE, "Fix_FullscreenOptimize"),
-	ProfileOption(POT_BYTE, "NoVSync"),
+	ProfileOption(POT_BYTE, "Fix_NoVSync"),
 	ProfileOption(POT_FLOAT, "RMI_ScaleGlobal"),
 	ProfileOption(POT_FLOAT, "RMI_ScaleY"),
 	ProfileOption(POT_BYTE, "PP_Enabled"),
