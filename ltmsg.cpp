@@ -4,6 +4,8 @@ typedef HRESULT (WINAPI* DirectDrawCreate_Type)(GUID FAR *, LPDIRECTDRAW FAR *, 
 typedef HRESULT (WINAPI* DirectDrawCreateEx_Type)( GUID FAR *, LPVOID *, REFIID,IUnknown FAR *);
 HMODULE WINAPI MyLoadLibraryA(LPCSTR lpFileName);
 void HookEngineStuff1();
+void HookDSStuff1();
+void ApplyTimeCalibrationDS_Fix();
 
 HRESULT __stdcall FakeD3DDevice_Load(LPDIRECT3DDEVICE7 lpDevice, LPDIRECTDRAWSURFACE7 lpDestTex,LPPOINT lpDestPoint,LPDIRECTDRAWSURFACE7 lpSrcTex,LPRECT lprcSrcRect,DWORD dwFlags)
 {
@@ -16,6 +18,17 @@ void GetD3D7FixVersion(char* szBuffer, BOOL bFullInfo)
 		sprintf(szBuffer, APP_NAME, APP_VERSION);
 	else
 		sprintf(szBuffer, "%.2f", APP_VERSION);
+}
+
+void ReadConfigDS(char* szFilename)
+{
+	char szSection[2048];
+	strcpy(g_szProfile, PROFILE_DEDICATED_SERVER);
+	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_DEDICATED_SERVER, szSection, 2048, szFilename);
+
+	SectionToCurrProfileBool(szSection, PO_TIME_CALIBRATION, FALSE);
+	SectionToCurrProfileFloat(szSection, PO_SERVER_FPS, 0.0f);
+	LogCurrProfile();
 }
 
 void ReadConfig(char* szFilename, char* szProfile)
@@ -114,14 +127,21 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 			if (strstr(g_szParentExeFilename, "lithtech"))
 			{
-				g_LogFile = fopen("ltmsg.log", "w");			
-				timeBeginPeriod(1);		
+				g_LogFile = fopen(LTMSG_LOG, "w");
+				timeBeginPeriod(1);
 				HookEngineStuff1();
+			}
+			else if (strstr(g_szParentExeFilename, "Server"))
+			{
+				g_LogFile = fopen(LTMSG_LOG, "w");
+				timeBeginPeriod(1);
+				HookDSStuff1();
 			}
 		}
 		break;
 
 		case DLL_PROCESS_DETACH:
+		{
 			if (strstr(g_szParentExeFilename, "lithtech"))
 			{
 				timeEndPeriod(1);
@@ -129,6 +149,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				FontList_Clear(FALSE);
 				fclose( g_LogFile );
 			}
+			else if (strstr(g_szParentExeFilename, "Server"))
+			{
+				timeEndPeriod(1);
+				fclose( g_LogFile );
+			}
+		}
 		break;
 	}
 	return TRUE;
@@ -714,6 +740,21 @@ void My_d3d_BlitToScreen(BlitRequest *pRequest)
 	d3d_BlitToScreen(pRequest);
 }
 
+void HookDSStuff1()
+{
+	logf("Hooking DS stuff #1");
+
+	HANDLE hProcess = GetCurrentProcess();
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
+
+	g_pServerMgr = (CServerMgrBase*)(dwDllAddress + 0x80E6C);
+
+	ReadConfigDS(".\\ltmsg.ini");
+
+	if (GetCurrProfileBool(PO_TIME_CALIBRATION))
+		ApplyTimeCalibrationDS_Fix();
+}
+
 void HookEngineStuff1()
 {
 	logf("Hooking engine stuff #1");
@@ -946,6 +987,25 @@ void ApplyTimeCalibration_Fix()
 
 	UpdateSounds = (UpdateSounds_type)(dwExeAddress + 0x83370);
 	EngineHack_WriteCall(hProcess, (LPVOID)(dwExeAddress + 0x836D7), (DWORD)MyUpdateSounds, FALSE);
+}
+
+void ApplyTimeCalibrationDS_Fix()
+{
+	logf("Applying DS time calibration fix");
+
+	HANDLE hProcess = GetCurrentProcess();
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
+
+	UpdateSounds = (UpdateSounds_type)(dwDllAddress + 0x3CA4B);
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x3CD72), (DWORD)MyUpdateSounds, FALSE);
+
+	DWORD dwNew = (DWORD)(&g_fServerFrameTimeClamp);
+	BYTE anOld[4];
+	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + 0x3CD23), (BYTE*)(&dwNew), anOld, 4);
+	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + 0x3CD38), (BYTE*)(&dwNew), anOld, 4);
+
+	float& fServerFPS = *(float*)(dwDllAddress + 0x70EC0);
+	fServerFPS = GetCurrProfileFloat(PO_SERVER_FPS);
 }
 
 DWORD (*OldFlipScreen)(DWORD flags);

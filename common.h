@@ -17,6 +17,7 @@ enum eProfileOption
 	PO_SHOW_FPS,
 	PO_FRAME_LIMITER_SLEEP,
 	PO_CAMERA_FOV_SCALER,
+	PO_SERVER_FPS,
 	PO_MAX_FPS,
 	PO_INTEL_HD,
 	PO_RADEON_5700,
@@ -107,12 +108,18 @@ extern int g_nLastFrameRate;
 #else
 	#define APP_NAME		"D3D7FIX v%.2f for Aliens vs Predator 2 (ltmsg.dll)"
 #endif
-#define APP_VERSION		0.30f
+#define APP_VERSION		0.31f
 #define CVAR_PROFILE	"D3D7FixProfile"
 #define CVAR_PROFILE_EX "D3D7FixProfileEx"
 
 #define LITHTECH_EXE	"lithtech.exe"
+#define SERVER_DLL		"server.dll"
 #define D3D_REN			"d3d.ren"
+#define LTMSG_LOG		"ltmsg.log"
+
+#define PROFILE_GLOBAL				"Global"
+#define PROFILE_CLEAN				"Clean"
+#define PROFILE_DEDICATED_SERVER	"Dedicated_Server"
 
 #define POSTPROCESSING_RES			256.0f
 
@@ -145,7 +152,7 @@ extern int g_nLastFrameRate;
 
 #define FLIP_FLAGS	(/*DDFLIP_NOVSYNC | */DDFLIP_WAIT)
 
-#define TLVERTEX (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_SPECULAR  | D3DFVF_TEX1 )
+#define TLVERTEX (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_SPECULAR  | D3DFVF_TEX1)
 
 struct LTRect
 {

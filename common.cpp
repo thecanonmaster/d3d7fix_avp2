@@ -33,6 +33,7 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "Misc_ShowFPS"),
 	ProfileOption(POT_DWORD, "Misc_FrameLimiterSleep"),
 	ProfileOption(POT_FLOAT, "Misc_CameraFOVXScaler"),
+	ProfileOption(POT_FLOAT, "Misc_ServerFPS"),
 	ProfileOption(POT_FLOAT, "Fix_MaxFPS"),
 	ProfileOption(POT_BYTE, "Fix_IntelHD"),
 	ProfileOption(POT_BYTE, "Fix_Radeon5700"),
