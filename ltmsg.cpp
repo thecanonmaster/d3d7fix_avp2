@@ -3,9 +3,9 @@
 typedef HRESULT (WINAPI* DirectDrawCreate_Type)(GUID FAR *, LPDIRECTDRAW FAR *, IUnknown FAR *);
 typedef HRESULT (WINAPI* DirectDrawCreateEx_Type)( GUID FAR *, LPVOID *, REFIID,IUnknown FAR *);
 HMODULE WINAPI MyLoadLibraryA(LPCSTR lpFileName);
+void ApplyTimeCalibrationDS_Fix();
 void HookEngineStuff1();
 void HookDSStuff1();
-void ApplyTimeCalibrationDS_Fix();
 
 HRESULT __stdcall FakeD3DDevice_Load(LPDIRECT3DDEVICE7 lpDevice, LPDIRECTDRAWSURFACE7 lpDestTex,LPPOINT lpDestPoint,LPDIRECTDRAWSURFACE7 lpSrcTex,LPRECT lprcSrcRect,DWORD dwFlags)
 {
@@ -740,6 +740,56 @@ void My_d3d_BlitToScreen(BlitRequest *pRequest)
 	d3d_BlitToScreen(pRequest);
 }
 
+BOOL g_bDSIntroDrawn = FALSE;
+void __fastcall MyIServerShell_Update(void* pShell, float timeElapsed)
+{
+	IServerShell_Update(pShell, timeElapsed);
+
+	if (!g_bDSIntroDrawn && ILTCSBase_GetTime(g_pLTServer) > DS_INTRO_DELAY)
+	{
+		g_bDSIntroDrawn = TRUE;
+		ILTCSBase_CPrint(g_pLTServer, APP_NAME, APP_VERSION);
+	}
+}
+
+void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode)
+{
+	IServerShell_VerifyClient(pShell, notUsed, hClient, pClientData, nVerifyCode);
+}
+
+typedef DWORD (*LoadServerBinaries_type)(CClassMgr *pClassMgr);
+DWORD (*LoadServerBinaries)(CClassMgr *pClassMgr);
+DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
+{
+	DWORD dwResult = LoadServerBinaries(pClassMgr);
+
+	DWORD dwRead;
+	HANDLE hProcess = GetCurrentProcess();
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
+	
+	g_pServerMgr = (CServerMgrBase*)(dwDllAddress + 0x80E6C);
+	g_pLTServer = g_pServerMgr->m_pServerMgr->m_pLTServer;
+	g_pClassMgr = (CClassMgrBase*)(dwDllAddress + 0x80E70);
+
+	DWORD* pOrigTable = (DWORD*)*(DWORD*)g_pLTServer;	
+	ILTCSBase_CPrint = (ILTCSBase_CPrint_type)pOrigTable[39]; 
+	ILTCSBase_GetTime = (ILTCSBase_GetTime_type)pOrigTable[53];
+	ILTCSBase_GetFrameTime = (ILTCSBase_GetFrameTime_type)pOrigTable[54];
+
+	ReadConfigDS(".\\ltmsg.ini");
+	
+	if (GetCurrProfileBool(PO_TIME_CALIBRATION))
+		ApplyTimeCalibrationDS_Fix();
+
+	pOrigTable = (DWORD*)*(DWORD*)g_pServerMgr->m_pServerMgr->m_pServerShell;	
+	IServerShell_Update = (IServerShell_Update_type)pOrigTable[15];
+	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 15), (DWORD)MyIServerShell_Update, dwRead);
+	IServerShell_VerifyClient = (IServerShell_VerifyClient_type)pOrigTable[4];
+	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 4), (DWORD)MyIServerShell_VerifyClient, dwRead);
+
+	return dwResult;
+}
+
 void HookDSStuff1()
 {
 	logf("Hooking DS stuff #1");
@@ -747,12 +797,8 @@ void HookDSStuff1()
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
 
-	g_pServerMgr = (CServerMgrBase*)(dwDllAddress + 0x80E6C);
-
-	ReadConfigDS(".\\ltmsg.ini");
-
-	if (GetCurrProfileBool(PO_TIME_CALIBRATION))
-		ApplyTimeCalibrationDS_Fix();
+	LoadServerBinaries = (LoadServerBinaries_type)(dwDllAddress + 0x1928);
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x3C40E), (DWORD)MyLoadServerBinaries, FALSE);
 }
 
 void HookEngineStuff1()

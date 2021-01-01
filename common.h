@@ -121,6 +121,8 @@ extern int g_nLastFrameRate;
 #define PROFILE_CLEAN				"Clean"
 #define PROFILE_DEDICATED_SERVER	"Dedicated_Server"
 
+#define DS_INTRO_DELAY				10.0f
+
 #define POSTPROCESSING_RES			256.0f
 
 #define FONT_LIST_UPDATE_TIME		5.0f
@@ -421,6 +423,8 @@ typedef float (__fastcall *ILTCSBase_GetTime_type)(ILTCSBase* pBase);
 typedef float (__fastcall *ILTCSBase_GetFrameTime_type)(ILTCSBase* pBase);
 
 typedef void (__fastcall *IClientShell_Update_type)(void* pShell);
+typedef void (__fastcall *IServerShell_Update_type)(void* pShell, float timeElapsed);
+typedef void (__fastcall *IServerShell_VerifyClient_type)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 
 extern void (__cdecl *ILTCSBase_CPrint)(ILTCSBase* pBase, char *pMsg, ...);
 extern DWORD (__stdcall *ILTCSBase_CreateString)(char *pString);
@@ -432,6 +436,8 @@ extern float (__fastcall *ILTCSBase_GetTime)(ILTCSBase* pBase);
 extern float (__fastcall *ILTCSBase_GetFrameTime)(ILTCSBase* pBase);
 
 extern void (__fastcall *IClientShell_Update)(void* pShell);
+extern void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
+extern void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 
 
 class ILTClient: public ILTCSBase
@@ -513,6 +519,18 @@ public:
 
 extern ILTClient* g_pLTClient;
 
+class ILTServer: public ILTCSBase
+{
+public:
+
+	DWORD			(*SetCRCString)(char *szCRCFiles);
+	DWORD			(*CreateStringCRC)();
+	DWORD			(*CreateWorldCRC)();
+
+};
+
+extern ILTServer* g_pLTServer;
+
 /*class CClientMgr
 {	
 public:
@@ -591,7 +609,11 @@ public:
 	DWORD			m_nTargetTimeSteps;
 	float			m_TrueFrameTime;
 	float			m_TrueLastTime;
-	BYTE			m_Data4[852]; // 884 972 3644
+	BYTE			m_Data4[328]; // 592 852 884 972 3644
+	void*			m_pServerShell; // 3120
+	BYTE			m_Data5[260];
+	ILTServer*		m_pLTServer; // 3384
+	BYTE			m_Data6[256];
 	void*			m_pServerFileMgr;
 };
 
@@ -602,8 +624,22 @@ public:
 	CServerMgr* m_pServerMgr;
 };
 
+class CClassMgr
+{
+public:
+	
+};
+
+class CClassMgrBase
+{
+public:
+
+	CClassMgr* m_pClassMgr;	
+};
+
 extern CServerMgrBase* g_pServerMgr;
 extern CClientMgrBase* g_pClientMgr;
+extern CClassMgrBase* g_pClassMgr;
 
 void CreateFrameRateFontSurfaces();
 void CreateIntroductionSurface();

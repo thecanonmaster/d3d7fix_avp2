@@ -16,7 +16,9 @@ HWND g_hWindowHandle = NULL;
 BOOL g_bWindowHooked = FALSE;
 CClientMgrBase* g_pClientMgr = NULL;
 CServerMgrBase* g_pServerMgr = NULL;
+CClassMgrBase* g_pClassMgr = NULL;
 ILTClient* g_pLTClient = NULL;
+ILTServer* g_pLTServer = NULL;
 float g_fLastFontListUpdate = 0.0f;
 
 LONG g_lRMILastX = 0;
@@ -81,6 +83,9 @@ float (__fastcall *ILTCSBase_GetTime)(ILTCSBase* pBase);
 float (__fastcall *ILTCSBase_GetFrameTime)(ILTCSBase* pBase);
 
 void (__fastcall *IClientShell_Update)(void* pShell);
+
+void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
+void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 
 /*bool SolidSurfaceList_HandleEqualFn(const SolidSurface* pItem)
 {
