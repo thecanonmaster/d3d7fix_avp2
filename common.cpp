@@ -58,6 +58,9 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "PP_Enabled"),
 	ProfileOption(POT_DWORD, "PP_Intensity"),
 	ProfileOption(POT_DWORD, "PP_IntensityMenu"),
+	ProfileOption(POT_BYTE, "Ext_BanManager"),
+	ProfileOption(POT_FLOAT, "Ext_MOTDTimer"),
+	ProfileOption(POT_STRING, "Ext_MOTDString"),
 };
 
 FontList g_FontList;
@@ -86,6 +89,7 @@ void (__fastcall *IClientShell_Update)(void* pShell);
 
 void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
 void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
+DWORD (__fastcall *IServerShell_ServerAppMessageFn)(void* pShell, void* notUsed, char *pMsg, int nLen);
 
 /*bool SolidSurfaceList_HandleEqualFn(const SolidSurface* pItem)
 {

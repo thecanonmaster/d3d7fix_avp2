@@ -40,6 +40,9 @@ enum eProfileOption
 	PO_POSTPROCESS_ENABLED,
 	PO_POSTPROCESS_INTENSITY,
 	PO_POSTPROCESS_INTENSITY_MENU,
+	EXT_BAN_MANAGER,
+	EXT_MOTD_TIMER,
+	EXT_MOTD_STRING,
 	PO_MAX,
 };
 
@@ -155,6 +158,9 @@ extern int g_nLastFrameRate;
 #define FLIP_FLAGS	(/*DDFLIP_NOVSYNC | */DDFLIP_WAIT)
 
 #define TLVERTEX (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_SPECULAR  | D3DFVF_TEX1)
+
+#define LT_DISCON_MISCCRC		7
+#define SERVERSHELL_MESSAGE		3
 
 struct LTRect
 {
@@ -425,6 +431,7 @@ typedef float (__fastcall *ILTCSBase_GetFrameTime_type)(ILTCSBase* pBase);
 typedef void (__fastcall *IClientShell_Update_type)(void* pShell);
 typedef void (__fastcall *IServerShell_Update_type)(void* pShell, float timeElapsed);
 typedef void (__fastcall *IServerShell_VerifyClient_type)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
+typedef DWORD (__fastcall *IServerShell_ServerAppMessageFn_type)(void* pShell, void* notUsed, char *pMsg, int nLen);
 
 extern void (__cdecl *ILTCSBase_CPrint)(ILTCSBase* pBase, char *pMsg, ...);
 extern DWORD (__stdcall *ILTCSBase_CreateString)(char *pString);
@@ -438,6 +445,7 @@ extern float (__fastcall *ILTCSBase_GetFrameTime)(ILTCSBase* pBase);
 extern void (__fastcall *IClientShell_Update)(void* pShell);
 extern void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
 extern void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
+extern DWORD (__fastcall *IServerShell_ServerAppMessageFn)(void* pShell, void* notUsed, char *pMsg, int nLen);
 
 
 class ILTClient: public ILTCSBase

@@ -18,4 +18,5 @@
 #include <list>
 #include <algorithm>
 #include "common.h"
+#include "BanMgr.h"
 

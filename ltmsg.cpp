@@ -28,6 +28,33 @@ void ReadConfigDS(char* szFilename)
 
 	SectionToCurrProfileBool(szSection, PO_TIME_CALIBRATION, FALSE);
 	SectionToCurrProfileFloat(szSection, PO_SERVER_FPS, 0.0f);
+	SectionToCurrProfileBool(szSection, EXT_BAN_MANAGER, FALSE);
+	SectionToCurrProfileFloat(szSection, EXT_MOTD_TIMER, 0.0f);
+	SectionToCurrProfileString(szSection, EXT_MOTD_STRING);
+
+	if (GetCurrProfileBool(EXT_BAN_MANAGER))
+	{
+		dwSectionSize = GetPrivateProfileSection(BAN_MGR_SECTION, szSection, 2048, szFilename);
+		
+		g_dwNameOffset = GetSectionInt(szSection, BAN_MGR_NAME_OFFSET, 0);
+		g_dwIdOffset = GetSectionInt(szSection, BAN_MGR_ID_OFFSET, 0);
+
+		char szBanKey[64];
+		char szBanValue[64];
+		int i = 0;
+		
+		while (true)
+		{
+			sprintf(szBanKey, BAN_MGR_BAN, i);
+
+			if (!GetSectionString(szSection, szBanKey, szBanValue)) 
+				break;
+
+			BanList_Add(szBanValue);
+			i++;
+		}
+	}
+	
 	LogCurrProfile();
 }
 
@@ -151,6 +178,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 			}
 			else if (strstr(g_szParentExeFilename, "Server"))
 			{
+				BanList_Free();
 				timeEndPeriod(1);
 				fclose( g_LogFile );
 			}
@@ -740,22 +768,72 @@ void My_d3d_BlitToScreen(BlitRequest *pRequest)
 	d3d_BlitToScreen(pRequest);
 }
 
-BOOL g_bDSIntroDrawn = FALSE;
+void SendMessageFromServerApp(char* szText)
+{
+	char szBuffer[256] = { SERVERSHELL_MESSAGE };
+	strcpy(szBuffer + 1, szText);
+	
+	DWORD dwNotUsed = 0;
+	IServerShell_ServerAppMessageFn(g_pServerMgr->m_pServerMgr->m_pServerShell, &dwNotUsed, szBuffer, 256);
+}
+
+//BOOL g_bDSIntroDrawn = FALSE;
+float g_fLastMOTDTime = 0.0f;
 void __fastcall MyIServerShell_Update(void* pShell, float timeElapsed)
 {
 	IServerShell_Update(pShell, timeElapsed);
 
-	if (!g_bDSIntroDrawn && ILTCSBase_GetTime(g_pLTServer) > DS_INTRO_DELAY)
+	/*if (!g_bDSIntroDrawn && ILTCSBase_GetTime(g_pLTServer) > DS_INTRO_DELAY)
 	{
 		g_bDSIntroDrawn = TRUE;
 		ILTCSBase_CPrint(g_pLTServer, APP_NAME, APP_VERSION);
-	}
+	}*/
+
+	float fMOTDTimer = GetCurrProfileFloat(EXT_MOTD_TIMER);
+	if (fMOTDTimer)
+	{
+		float fTime = ILTCSBase_GetTime(g_pLTServer);
+		if (fTime - g_fLastMOTDTime > fMOTDTimer)
+		{
+			g_fLastMOTDTime = fTime;
+			char* szMOTD = GetCurrProfileString(EXT_MOTD_STRING);
+			
+			ILTCSBase_CPrint(g_pLTServer, "[EXT] MOTD: %s", szMOTD);
+			SendMessageFromServerApp(szMOTD);
+		}
+	}	
 }
 
 void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode)
 {
 	IServerShell_VerifyClient(pShell, notUsed, hClient, pClientData, nVerifyCode);
+
+	if (GetCurrProfileBool(EXT_BAN_MANAGER) && hClient && pClientData)
+	{
+		char* szName = NULL;
+		char szIP[64];
+		char* szID = NULL;
+		char szBuffer[1024];
+		
+		if (BanList_IsBanned(hClient, pClientData, &szName, szIP, &szID))
+		{		
+			sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s) is banned!", szName, szIP, szID);
+			nVerifyCode = LT_DISCON_MISCCRC;
+		}
+		else
+		{			
+			sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s) is good to go!", szName, szIP, szID);
+		}
+
+		logf(szBuffer);
+		ILTCSBase_CPrint(g_pLTServer, szBuffer);
+	}
 }
+
+/*DWORD __fastcall MyIServerShell_ServerAppMessageFn(void* pShell, void* notUsed, char *pMsg, int nLen)
+{
+	return IServerShell_ServerAppMessageFn(pShell, notUsed, pMsg, nLen);
+}*/
 
 typedef DWORD (*LoadServerBinaries_type)(CClassMgr *pClassMgr);
 DWORD (*LoadServerBinaries)(CClassMgr *pClassMgr);
@@ -786,6 +864,12 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 15), (DWORD)MyIServerShell_Update, dwRead);
 	IServerShell_VerifyClient = (IServerShell_VerifyClient_type)pOrigTable[4];
 	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 4), (DWORD)MyIServerShell_VerifyClient, dwRead);
+
+	if (GetCurrProfileFloat(EXT_MOTD_TIMER))
+	{
+		IServerShell_ServerAppMessageFn = (IServerShell_ServerAppMessageFn_type)pOrigTable[1];
+		//EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 1), (DWORD)MyIServerShell_ServerAppMessageFn, dwRead);
+	}
 
 	return dwResult;
 }
