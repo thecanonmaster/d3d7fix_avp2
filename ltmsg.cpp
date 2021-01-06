@@ -825,9 +825,15 @@ void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD h
 			sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s) is good to go!", szName, szIP, szID);
 		}
 
-		logf(szBuffer);
+		logf(szBuffer + 6);
 		ILTCSBase_CPrint(g_pLTServer, szBuffer);
 	}
+}
+
+void __fastcall MyIServerShell_PostStartWorld(void* pShell)
+{
+	g_fLastMOTDTime = 0.0f;
+	IServerShell_PostStartWorld(pShell);
 }
 
 /*DWORD __fastcall MyIServerShell_ServerAppMessageFn(void* pShell, void* notUsed, char *pMsg, int nLen)
@@ -864,6 +870,8 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 15), (DWORD)MyIServerShell_Update, dwRead);
 	IServerShell_VerifyClient = (IServerShell_VerifyClient_type)pOrigTable[4];
 	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 4), (DWORD)MyIServerShell_VerifyClient, dwRead);
+	IServerShell_PostStartWorld = (IServerShell_PostStartWorld_type)pOrigTable[8];
+	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 8), (DWORD)MyIServerShell_PostStartWorld, dwRead);
 
 	if (GetCurrProfileFloat(EXT_MOTD_TIMER))
 	{

@@ -432,6 +432,7 @@ typedef void (__fastcall *IClientShell_Update_type)(void* pShell);
 typedef void (__fastcall *IServerShell_Update_type)(void* pShell, float timeElapsed);
 typedef void (__fastcall *IServerShell_VerifyClient_type)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 typedef DWORD (__fastcall *IServerShell_ServerAppMessageFn_type)(void* pShell, void* notUsed, char *pMsg, int nLen);
+typedef void (__fastcall *IServerShell_PostStartWorld_type)(void* pShell);
 
 extern void (__cdecl *ILTCSBase_CPrint)(ILTCSBase* pBase, char *pMsg, ...);
 extern DWORD (__stdcall *ILTCSBase_CreateString)(char *pString);
@@ -446,6 +447,7 @@ extern void (__fastcall *IClientShell_Update)(void* pShell);
 extern void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
 extern void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 extern DWORD (__fastcall *IServerShell_ServerAppMessageFn)(void* pShell, void* notUsed, char *pMsg, int nLen);
+extern void (__fastcall *IServerShell_PostStartWorld)(void* pShell);
 
 
 class ILTClient: public ILTCSBase

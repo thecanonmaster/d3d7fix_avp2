@@ -90,6 +90,7 @@ void (__fastcall *IClientShell_Update)(void* pShell);
 void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
 void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 DWORD (__fastcall *IServerShell_ServerAppMessageFn)(void* pShell, void* notUsed, char *pMsg, int nLen);
+void (__fastcall *IServerShell_PostStartWorld)(void* pShell);
 
 /*bool SolidSurfaceList_HandleEqualFn(const SolidSurface* pItem)
 {
