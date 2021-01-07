@@ -17,6 +17,8 @@
 #include <vector>
 #include <list>
 #include <algorithm>
+#include "font15.h"
 #include "common.h"
+#include "Console.h"
 #include "BanMgr.h"
 

@@ -262,7 +262,7 @@ void ApplyRawMouseInput_Fix()
 	g_pLTClient->RunConsoleString = MyRunConsoleString;
 }
 
-float increaseHorFOV(float fFOVX, float fAspectRatio)
+float IncreaseHorFOV(float fFOVX, float fAspectRatio)
 {
 	float tempVradian = 2.0f * atanf(tanf(fFOVX / 2.0f) * 0.75f);
 	return (2.0f * atanf(tanf(tempVradian / 2.0f) * fAspectRatio));
@@ -271,7 +271,7 @@ float increaseHorFOV(float fFOVX, float fAspectRatio)
 void (*OldSetCameraFOV)(DWORD hObj, float fovX, float fovY);
 void MySetCameraFOV(DWORD hObj, float fovX, float fovY)
 {
-	fovX = increaseHorFOV(fovX, (float)(g_dwWidth * GetCurrProfileFloat(PO_CAMERA_FOV_SCALER)) / (float)g_dwHeight);
+	fovX = IncreaseHorFOV(fovX, (float)(g_dwWidth * GetCurrProfileFloat(PO_CAMERA_FOV_SCALER)) / (float)g_dwHeight);
 	OldSetCameraFOV(hObj, fovX, fovY);	
 }
 
@@ -576,14 +576,60 @@ void DrawIntroduction()
 		g_pLTClient->DrawSurfaceToSurfaceTransparent(hScreen, g_hIntroductionSurface[i], NULL, 5, 5 + (i * INTRODUCTION_FONT_HEIGHT + 2), 0);
 }
 
+void DrawIntroductionF15()
+{
+	char szTitle[64];
+	char szProfile[64];
+	char szDescription[256];
+	char szPostprocess[64];
+	
+	char* szIntro[INTRODUCTION_LINES];
+	sprintf(szTitle, APP_NAME, APP_VERSION);
+	szIntro[0] = szTitle;
+	sprintf(szProfile, "Active profile = %s", g_szProfile);
+	szIntro[1] = szProfile;
+	sprintf(szDescription, "Profile description = %s", GetCurrProfileString(PO_DESCRIPTION));
+	szIntro[2] = szDescription;
+	sprintf(szPostprocess, "Postprocessing enabled = %s", GetCurrProfileBool(PO_POSTPROCESS_ENABLED) ? "TRUE" : "FALSE");
+	szIntro[3] = szPostprocess;
+	szIntro[4] = "Page Up - borderless window toggle";
+	szIntro[5] = "Page Down - draw FPS counter toggle";
+	
+#ifdef _DEBUG
+	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x006666FF, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF };
+#else	
+	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x0000FF00, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF };
+#endif
+	
+	if (GetCurrProfileBool(PO_CLEAN_MODE)) 
+		dwColorMap[1] = 0x00FF0000;
+	
+	for (int i = 0; i < INTRODUCTION_LINES; i++)
+		DrawFont15String(szIntro[i], 5, 5 + (i * (FONT15_HEIGHT * 3 + 2)), 1, 3, dwColorMap[i]);
+}
+
 void DrawFrameRate()
+{
+	char szBuffer[64];
+	itoa(g_nLastFrameRate, szBuffer, 10);
+
+	DWORD hFontColor = 0x0000FF00;
+	if (g_nLastFrameRate < FRAME_RATE_LEVEL_RED)
+		hFontColor = 0x00FF0000;
+	else if (g_nLastFrameRate < FRAME_RATE_LEVEL_YELLOW)
+		hFontColor = 0x00FFFF00;
+
+	DrawFont15String(szBuffer, 5, g_dwHeight - (FONT15_HEIGHT * FRAME_RATE_FONT_SCALE) - 5, 1, FRAME_RATE_FONT_SCALE, hFontColor);
+}
+
+void DrawFrameRateOld()
 {
 	/*DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 	bool & g_bInOptimized2D = *(bool*)(dwDllAddress + 0x5DE44);
 	bool & g_bIn3D = *(bool*)(dwDllAddress + 0x5DE40);*/	
 	
-	if (!g_hFrameRateFontSurface[0])
-		CreateFrameRateFontSurfaces();
+	if (!g_hFont15Surface)
+		CreateFont15Surface();
 
 	DWORD hScreen = g_pLTClient->GetScreenSurface();
 
@@ -592,8 +638,8 @@ void DrawFrameRate()
 
 	int nLength = strlen(szBuffer);
 	LTRect rcDest;
-	rcDest.top = g_dwHeight - (FRAME_RATE_FONT_HEIGHT * FRAME_RATE_FONT_SCALE) - 5;
-	rcDest.bottom = rcDest.top + (FRAME_RATE_FONT_HEIGHT * FRAME_RATE_FONT_SCALE);
+	rcDest.top = g_dwHeight - (FONT15_HEIGHT * FRAME_RATE_FONT_SCALE) - 5;
+	rcDest.bottom = rcDest.top + (FONT15_HEIGHT * FRAME_RATE_FONT_SCALE);
 
 	DWORD hFontColor = 0x0000FF00;
 	if (g_nLastFrameRate < FRAME_RATE_LEVEL_RED)
@@ -607,11 +653,13 @@ void DrawFrameRate()
 	{
 		//g_pLTClient->DrawSurfaceToSurface(hScreen, g_hFrameRateFontSurface[szBuffer[k] - 0x30], NULL, nStartX + (k * (FRAME_RATE_FONT_HEIGHT + 1)), nStartY);	
 		
-		rcDest.left = 5 + (k * (FRAME_RATE_FONT_WIDTH + 1) * FRAME_RATE_FONT_SCALE);
-		rcDest.right = rcDest.left + (FRAME_RATE_FONT_WIDTH * FRAME_RATE_FONT_SCALE);
-		g_pLTClient->ScaleSurfaceToSurfaceTransparent(hScreen, g_hFrameRateFontSurface[szBuffer[k] - 0x30], &rcDest, NULL, 0);
+		rcDest.left = 5 + (k * (FONT15_WIDTH + 1) * FRAME_RATE_FONT_SCALE);
+		rcDest.right = rcDest.left + (FONT15_WIDTH * FRAME_RATE_FONT_SCALE);
+		//g_pLTClient->ScaleSurfaceToSurfaceTransparent(hScreen, g_hFont15Surface[szBuffer[k] - FONT15_BEGIN], &rcDest, NULL, 0);
 	}
 	g_pLTClient->SetOptimized2DColor(0x00FFFFFF);
+
+	//DrawFont15String(" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¦", 0, 250, 2, 4, 0x00FFFFFF);
 }
 
 DWORD g_hViewModelBaseFOVX = 0;
@@ -703,6 +751,9 @@ DWORD MyEndOptimized2D()
 	
 	if (GetCurrProfileBool(PO_SHOW_FPS) && g_bDrawFPS)
 		DrawFrameRate();
+	
+	if (g_bConsoleEnabled)
+		Console_Draw();
 	
 	return OldEndOptimized2D();
 }
@@ -942,6 +993,9 @@ void HookEngineStuff2()
 	g_pServerMgr = (CServerMgrBase*)(dwExeAddress + 0xE5DC8);
 	g_pLTClient = g_pClientMgr->m_pClientMgr->m_pLTClient;
 
+	CConsole& console = *(CConsole*)(dwExeAddress + 0xE2F88);
+	g_pConsole = &console;
+
 	DWORD* pOrigTable = (DWORD*)*(DWORD*)g_pLTClient;
 
 	ILTCSBase_CPrint = (ILTCSBase_CPrint_type)pOrigTable[39]; 	
@@ -1006,6 +1060,7 @@ void HookEngineStuff2()
 		g_pLTClient->RunConsoleString("MaxModelLights 10");
 		g_pLTClient->RunConsoleString("NearZ 4");
 		g_pLTClient->RunConsoleString("ReallyCloseNearZ 0.01");
+		//g_pLTClient->RunConsoleString("FilterOptimized 1");
 		//g_pLTClient->RunConsoleString("TripleBuffer 0");
 	}
 	

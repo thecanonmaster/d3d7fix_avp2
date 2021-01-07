@@ -92,8 +92,8 @@ LINK32=link.exe
 InputPath=.\Debug\ltmsg.dll
 SOURCE="$(InputPath)"
 
-"E:\Games\AVP2\_RELEASE_SERVER\ltmsg.dll" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	copy $(InputPath) "E:\Games\AVP2\_RELEASE_SERVER\ltmsg.dll"
+"E:\Games\AVP2\ltmsg.dll" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	copy $(InputPath) "E:\Games\AVP2\ltmsg.dll"
 
 # End Custom Build
 
@@ -116,6 +116,10 @@ SOURCE=.\common.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\Console.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\FakeID3D7.cpp
 # End Source File
 # Begin Source File
@@ -125,6 +129,10 @@ SOURCE=.\FakeIDDraw7.cpp
 # Begin Source File
 
 SOURCE=.\FakeIDDrawSurface7.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\font15.cpp
 # End Source File
 # Begin Source File
 
@@ -156,6 +164,10 @@ SOURCE=.\common.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\Console.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\FakeID3D.h
 # End Source File
 # Begin Source File
@@ -164,7 +176,7 @@ SOURCE=.\FakeIDDraw.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\numfont.h
+SOURCE=.\font15.h
 # End Source File
 # Begin Source File
 

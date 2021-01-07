@@ -115,6 +115,9 @@ LRESULT CALLBACK NewWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 	if (uMsg == WM_KEYDOWN && wParam == VK_NEXT)
 		g_bDrawFPS = !g_bDrawFPS;
 
+	if (uMsg == WM_KEYDOWN && wParam == 0xC0)
+		g_bConsoleEnabled = !g_bConsoleEnabled;
+
 	if (GetCurrProfileFlag(PO_RAW_MOUSE_INPUT) && uMsg == WM_INPUT)
 	{
 		ProcessRawMouseInput(lParam, g_lRMILastX, g_lRMILastY);

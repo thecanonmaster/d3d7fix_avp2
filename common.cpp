@@ -1,5 +1,4 @@
 #include "StdAfx.h"
-#include "numfont.h"
 
 FILE* g_LogFile = NULL;
 char g_szProfile[64];
@@ -67,7 +66,7 @@ FontList g_FontList;
 DWORD g_hWhitePixelSurface = NULL;
 float g_fIntroductionStartTime = 0.0f;
 DWORD g_hIntroductionSurface[INTRODUCTION_LINES] = { NULL, NULL, NULL, NULL, NULL, NULL };
-DWORD g_hFrameRateFontSurface[10] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+DWORD g_hFont15Surface = NULL;
 int g_nLastFrameRate = 0;
 //SolidSurfaceList g_SolidSurfaceList;
 
@@ -249,14 +248,13 @@ void FontList_Clear(BOOL bDeleteSurfaces)
 			}
 		}
 		
-		for (i = 0; i < 10 ; i++)
+		if (g_hFont15Surface)
 		{
-			if (g_hFrameRateFontSurface[i])
-			{
-				g_pLTClient->DeleteSurface(g_hFrameRateFontSurface[i]);
-				g_hFrameRateFontSurface[i] = NULL;
-			}			
-		}
+			g_pLTClient->DeleteSurface(g_hFont15Surface);
+			g_hFont15Surface = NULL;
+		}	
+		
+		Console_Term();
 	}
 	
 	//int a = g_FontList.size();
@@ -387,21 +385,56 @@ void EngineHack_WriteCall(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew, BOOL bStr
 	}
 }
 
-void CreateFrameRateFontSurfaces()
+void CreateFont15Surface()
 {
-	for (int i = 0; i < 10 ; i++)
+	g_hFont15Surface = g_pLTClient->CreateSurface(FONT15_WIDTH * FONT15_LENGTH, FONT15_HEIGHT);
+
+	for (int i = 0; i < FONT15_LENGTH ; i++)
 	{
-		g_hFrameRateFontSurface[i] = g_pLTClient->CreateSurface(FRAME_RATE_FONT_WIDTH, FRAME_RATE_FONT_HEIGHT);
-		for (int j = 0; j < (FRAME_RATE_FONT_WIDTH * FRAME_RATE_FONT_HEIGHT) ; j++)
+		for (int j = 0; j < (FONT15_WIDTH * FONT15_HEIGHT) ; j++)
 		{
-			if (g_nNums[i][j])
+			if (g_anFont[i][j])
 			{			
-				DWORD y = j / FRAME_RATE_FONT_WIDTH;
-				DWORD x = j % FRAME_RATE_FONT_WIDTH;
-				g_pLTClient->SetPixel(g_hFrameRateFontSurface[i], x, y, 0x00FFFFFF);
+				DWORD y = j / FONT15_WIDTH;
+				DWORD x = (i * FONT15_WIDTH) + (j % FONT15_WIDTH);
+				g_pLTClient->SetPixel(g_hFont15Surface, x, y, 0x00FFFFFF);
 			}
 		}
-	}	
+	}
+
+	g_pLTClient->OptimizeSurface(g_hFont15Surface, 0);
+}
+
+void DrawFont15String(char* szString, int nX, int nY, int nSpacing, int nScale, DWORD dwColor)
+{	
+	if (!g_hFont15Surface)
+		CreateFont15Surface();
+
+	DWORD hScreen = g_pLTClient->GetScreenSurface();
+
+	int nLength = strlen(szString);
+	LTRect rcDest;
+	rcDest.top = nY;
+	rcDest.bottom = rcDest.top + (FONT15_HEIGHT * nScale);
+
+	LTRect rcSrc;
+	rcSrc.top = 0;
+	rcSrc.bottom = FONT15_HEIGHT;
+
+	g_pLTClient->SetOptimized2DColor(dwColor);
+
+	for (int i = 0; i < nLength ; i++)
+	{	
+		rcDest.left = nX + (i * (FONT15_WIDTH + nSpacing) * nScale);
+		rcDest.right = rcDest.left + (FONT15_WIDTH * nScale);
+		
+		rcSrc.left = (Font15_GetCharIndex(szString[i]) * FONT15_WIDTH);
+		rcSrc.right = rcSrc.left + FONT15_WIDTH;
+
+		g_pLTClient->ScaleSurfaceToSurfaceTransparent(hScreen, g_hFont15Surface, &rcDest, &rcSrc, 0);
+	}
+
+	g_pLTClient->SetOptimized2DColor(0x00FFFFFF);
 }
 
 void CreateIntroductionSurface()
@@ -429,7 +462,7 @@ void CreateIntroductionSurface()
 	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x0000FF00, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF };
 #endif
 
-	if (GetCurrProfileBool(PO_CLEAN_MODE)) 
+	if (g_ProfileOptions[PO_CLEAN_MODE].bValue) 
 		dwColorMap[1] = 0x00FF0000;
 
 	DWORD hFont = g_pLTClient->CreateFont("Terminal", INTRODUCTION_FONT_WIDTH, INTRODUCTION_FONT_HEIGHT, FALSE, FALSE, FALSE);

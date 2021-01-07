@@ -138,8 +138,6 @@ extern int g_nLastFrameRate;
 #define INTRODUCTION_FONT_WIDTH		10
 #define INTRODUCTION_LINES			6
 
-#define FRAME_RATE_FONT_HEIGHT	5
-#define FRAME_RATE_FONT_WIDTH	3
 #define FRAME_RATE_FONT_SCALE	2
 #define FRAME_RATE_UPDATE_TIME	0.2f
 #define FRAME_RATE_LEVEL_RED	30
@@ -295,7 +293,7 @@ extern FontList g_FontList;
 extern DWORD g_hWhitePixelSurface;
 extern float g_fIntroductionStartTime;
 extern DWORD g_hIntroductionSurface[INTRODUCTION_LINES];
-extern DWORD g_hFrameRateFontSurface[10];
+extern DWORD g_hFont15Surface;
 //extern SolidSurfaceList g_SolidSurfaceList;
 
 extern DWORD g_hFontSearch;
@@ -651,7 +649,8 @@ extern CServerMgrBase* g_pServerMgr;
 extern CClientMgrBase* g_pClientMgr;
 extern CClassMgrBase* g_pClassMgr;
 
-void CreateFrameRateFontSurfaces();
+void CreateFont15Surface();
+void DrawFont15String(char* szString, int nX, int nY, int nSpacing, int nScale, DWORD dwColor);
 void CreateIntroductionSurface();
 BOOL RegisterRawMouseDevice();
 void ProcessRawMouseInput(LPARAM lParam, LONG& lLastX, LONG& lLastY);
