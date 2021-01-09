@@ -27,6 +27,7 @@ LONG g_lRMILastY = 0;
 ProfileOption g_ProfileOptions[PO_MAX] = 
 {
 	ProfileOption(POT_BYTE, "DgVoodooMode"),
+	ProfileOption(POT_BYTE, "DefaultProfile"),
 	ProfileOption(POT_FLOAT, "IntroductionTime"),
 	ProfileOption(POT_STRING, "Misc_Description"),
 	ProfileOption(POT_BYTE, "Misc_CleanMode"),
@@ -35,6 +36,8 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_DWORD, "Misc_FrameLimiterSleep"),
 	ProfileOption(POT_FLOAT, "Misc_CameraFOVXScaler"),
 	ProfileOption(POT_FLOAT, "Misc_ServerFPS"),
+	ProfileOption(POT_BYTE, "Misc_EnableConsole"),
+	ProfileOption(POT_BYTE, "Misc_NoEnvMapConsolePrint"),
 	ProfileOption(POT_FLOAT, "Fix_MaxFPS"),
 	ProfileOption(POT_BYTE, "Fix_IntelHD"),
 	ProfileOption(POT_BYTE, "Fix_Radeon5700"),
@@ -385,6 +388,12 @@ void EngineHack_WriteCall(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew, BOOL bStr
 	}
 }
 
+void EngineHack_AllowWrite(HANDLE hProcess, LPVOID lpAddr, DWORD dwSize)
+{
+	DWORD dwOldProtect;	
+	VirtualProtectEx(hProcess, lpAddr, dwSize, PAGE_EXECUTE_READWRITE, &dwOldProtect);	
+}
+
 void CreateFont15Surface()
 {
 	g_hFont15Surface = g_pLTClient->CreateSurface(FONT15_WIDTH * FONT15_LENGTH, FONT15_HEIGHT);
@@ -405,17 +414,13 @@ void CreateFont15Surface()
 	g_pLTClient->OptimizeSurface(g_hFont15Surface, 0);
 }
 
-void DrawFont15String(char* szString, int nX, int nY, int nSpacing, int nScale, DWORD dwColor)
+void DrawFont15String(char* szString, int nX, int nY, int nSpacing, int nScale, DWORD dwColor, DWORD hDestSurfOverride/* = NULL*/)
 {	
 	if (!g_hFont15Surface)
 		CreateFont15Surface();
 
-	DWORD hScreen = g_pLTClient->GetScreenSurface();
-
+	DWORD hDestSurf = !hDestSurfOverride ? g_pLTClient->GetScreenSurface() : hDestSurfOverride;
 	int nLength = strlen(szString);
-	LTRect rcDest;
-	rcDest.top = nY;
-	rcDest.bottom = rcDest.top + (FONT15_HEIGHT * nScale);
 
 	LTRect rcSrc;
 	rcSrc.top = 0;
@@ -423,15 +428,32 @@ void DrawFont15String(char* szString, int nX, int nY, int nSpacing, int nScale, 
 
 	g_pLTClient->SetOptimized2DColor(dwColor);
 
-	for (int i = 0; i < nLength ; i++)
-	{	
-		rcDest.left = nX + (i * (FONT15_WIDTH + nSpacing) * nScale);
-		rcDest.right = rcDest.left + (FONT15_WIDTH * nScale);
+	if (nScale == 1)
+	{
+		for (int i = 0; i < nLength ; i++)
+		{
+			rcSrc.left = (Font15_GetCharIndex(szString[i]) * FONT15_WIDTH);
+			rcSrc.right = rcSrc.left + FONT15_WIDTH;
+			
+			g_pLTClient->DrawSurfaceToSurfaceTransparent(hDestSurf, g_hFont15Surface, &rcSrc, nX + (i * (FONT15_WIDTH + nSpacing)), nY, 0);
+		}
+	}
+	else
+	{
+		LTRect rcDest;
+		rcDest.top = nY;
+		rcDest.bottom = rcDest.top + (FONT15_HEIGHT * nScale);
 		
-		rcSrc.left = (Font15_GetCharIndex(szString[i]) * FONT15_WIDTH);
-		rcSrc.right = rcSrc.left + FONT15_WIDTH;
-
-		g_pLTClient->ScaleSurfaceToSurfaceTransparent(hScreen, g_hFont15Surface, &rcDest, &rcSrc, 0);
+		for (int i = 0; i < nLength ; i++)
+		{	
+			rcDest.left = nX + (i * (FONT15_WIDTH + nSpacing) * nScale);
+			rcDest.right = rcDest.left + (FONT15_WIDTH * nScale);
+			
+			rcSrc.left = (Font15_GetCharIndex(szString[i]) * FONT15_WIDTH);
+			rcSrc.right = rcSrc.left + FONT15_WIDTH;
+			
+			g_pLTClient->ScaleSurfaceToSurfaceTransparent(hDestSurf, g_hFont15Surface, &rcDest, &rcSrc, 0);
+		}
 	}
 
 	g_pLTClient->SetOptimized2DColor(0x00FFFFFF);

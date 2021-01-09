@@ -112,11 +112,14 @@ LRESULT CALLBACK NewWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		SetWindowPos(g_hWindowHandle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 	}
 
-	if (uMsg == WM_KEYDOWN && wParam == VK_NEXT)
-		g_bDrawFPS = !g_bDrawFPS;
+	if (uMsg == WM_KEYDOWN)
+	{
+		if (wParam == VK_NEXT)
+			g_bDrawFPS = !g_bDrawFPS;
 
-	if (uMsg == WM_KEYDOWN && wParam == 0xC0)
-		g_bConsoleEnabled = !g_bConsoleEnabled;
+		if (GetCurrProfileBool(PO_ENABLE_CONSOLE) && wParam == 0xC0)
+			g_bDrawConsole = !g_bDrawConsole;
+	}
 
 	if (GetCurrProfileFlag(PO_RAW_MOUSE_INPUT) && uMsg == WM_INPUT)
 	{

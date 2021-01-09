@@ -1,7 +1,7 @@
 #define MAX_CONSOLE_TEXTLEN 256
 #define CONSOLE_FONT_SCALE 2
 #define CONSOLE_LINE_SPACE 2
-#define CONSOLE_BACKGROUND_ALPHA 0.5f
+#define CONSOLE_BACKGROUND_ALPHA 0.75f
 
 typedef void (*ErrorLogFn)(char *pMsg);
 
@@ -80,8 +80,9 @@ public:
 	DWORD			m_nTextLines;
 };
 
-extern BOOL g_bConsoleEnabled;
+extern BOOL g_bDrawConsole;
 extern CConsole* g_pConsole;
+extern DWORD* g_pnConTextColor;
 
 void Console_Init();
 void Console_Term();

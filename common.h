@@ -10,7 +10,8 @@ enum eProfileOptionType
 enum eProfileOption
 {
 	PO_DGVOODOO_MODE = 0,
-	PO_INTRODUCTION_TIME = 1,
+	PO_DEFAULT_PROFILE = 1,
+	PO_INTRODUCTION_TIME,
 	PO_DESCRIPTION,
 	PO_CLEAN_MODE,
 	PO_DONT_SHUTDOWN_RENDERER,
@@ -18,6 +19,8 @@ enum eProfileOption
 	PO_FRAME_LIMITER_SLEEP,
 	PO_CAMERA_FOV_SCALER,
 	PO_SERVER_FPS,
+	PO_ENABLE_CONSOLE,
+	PO_NO_ENVMAP_CONSOLE_PRINT,
 	PO_MAX_FPS,
 	PO_INTEL_HD,
 	PO_RADEON_5700,
@@ -111,6 +114,7 @@ extern int g_nLastFrameRate;
 #else
 	#define APP_NAME		"D3D7FIX v%.2f for Aliens vs Predator 2 (ltmsg.dll)"
 #endif
+#define APP_NAME_SHORT	"D3D7FIX v%.2f"
 #define APP_VERSION		0.31f
 #define CVAR_PROFILE	"D3D7FixProfile"
 #define CVAR_PROFILE_EX "D3D7FixProfileEx"
@@ -650,13 +654,14 @@ extern CClientMgrBase* g_pClientMgr;
 extern CClassMgrBase* g_pClassMgr;
 
 void CreateFont15Surface();
-void DrawFont15String(char* szString, int nX, int nY, int nSpacing, int nScale, DWORD dwColor);
+void DrawFont15String(char* szString, int nX, int nY, int nSpacing, int nScale, DWORD dwColor, DWORD hDestSurfOverride = NULL);
 void CreateIntroductionSurface();
 BOOL RegisterRawMouseDevice();
 void ProcessRawMouseInput(LPARAM lParam, LONG& lLastX, LONG& lLastY);
 void EngineHack_WriteData(HANDLE hProcess, LPVOID lpAddr, BYTE* pNew, BYTE* pOld, DWORD dwSize);
 void EngineHack_WriteFunction(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew, DWORD& dwOld);
 void EngineHack_WriteCall(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew, BOOL bStructCall);
+void EngineHack_AllowWrite(HANDLE hProcess, LPVOID lpAddr, DWORD dwSize);
 
 
 BOOL GetSectionString(char* szSection, char* szKey, char* szValue);

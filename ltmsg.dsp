@@ -156,6 +156,10 @@ SOURCE=.\stdafx.cpp
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
+SOURCE=.\addresses.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\BanMgr.h
 # End Source File
 # Begin Source File

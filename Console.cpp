@@ -1,10 +1,12 @@
 #include "StdAfx.h"
 
-BOOL g_bConsoleEnabled = FALSE;
+BOOL g_bDrawConsole = FALSE;
 CConsole* g_pConsole;
 DWORD g_hBackground = NULL;
+DWORD g_hVersion = NULL;
 DWORD g_dwLastWidth;
 DWORD g_dwLastHeight;
+DWORD* g_pnConTextColor = NULL;
 
 void Console_Init()
 {
@@ -17,16 +19,33 @@ void Console_Init()
 		g_dwLastHeight = g_dwHeight;
 		
 		g_hBackground = g_pLTClient->CreateSurface(1, 1);
-		g_pLTClient->SetPixel(g_hBackground, 0, 0, 0x0000AA00);
+		g_pLTClient->SetPixel(g_hBackground, 0, 0, 0x00005500);
 		g_pLTClient->SetSurfaceAlpha(g_hBackground, CONSOLE_BACKGROUND_ALPHA);
 		g_pLTClient->OptimizeSurface(g_hBackground, 0);
+	
+		char szVersionStr[64];
+		sprintf(szVersionStr, APP_NAME_SHORT, APP_VERSION);
+		int nVersionStrLength = strlen(szVersionStr);
+		g_hVersion = g_pLTClient->CreateSurface((FONT15_WIDTH + 1) * nVersionStrLength, FONT15_HEIGHT);
+		DrawFont15String(szVersionStr, 0, 0, 1, 1, 0x00FFFFFF, g_hVersion);
+
+		g_pLTClient->OptimizeSurface(g_hVersion, 0);
 	}
 }
 
 void Console_Term()
 {
 	if (g_hBackground)
+	{
 		g_pLTClient->DeleteSurface(g_hBackground);
+		g_hBackground = NULL;
+	}
+
+	if (g_hVersion)
+	{
+		g_pLTClient->DeleteSurface(g_hVersion);
+		g_hVersion = NULL;
+	}
 }
 
 void Console_Draw()
@@ -45,6 +64,19 @@ void Console_Draw()
 	int nFontScaledHeight = FONT15_HEIGHT * CONSOLE_FONT_SCALE;
 
 	g_pLTClient->ScaleSurfaceToSurface(hScreen, g_hBackground, &rcDest, NULL);
+
+	DWORD nVersionSurfWidth = 0, nVersionSurfHeight = 0;
+	g_pLTClient->GetSurfaceDims(g_hVersion, &nVersionSurfWidth, &nVersionSurfHeight);
+
+	LTRect rcVersionDest;
+	nVersionSurfWidth *= CONSOLE_FONT_SCALE;
+	nVersionSurfHeight *= CONSOLE_FONT_SCALE;
+
+	rcVersionDest.left = g_dwLastWidth - nVersionSurfWidth;
+	rcVersionDest.right = rcVersionDest.left + nVersionSurfWidth;
+	rcVersionDest.top = nHeight - nVersionSurfHeight - CONSOLE_LINE_SPACE;
+	rcVersionDest.bottom = rcVersionDest.top + nVersionSurfHeight;
+	g_pLTClient->ScaleSurfaceToSurfaceTransparent(hScreen, g_hVersion, &rcVersionDest, NULL, 0);
 
 	if (g_pConsole)
 	{

@@ -61,17 +61,18 @@ void ReadConfigDS(char* szFilename)
 void ReadConfig(char* szFilename, char* szProfile)
 {
 	char szSection[2048];
-	DWORD dwSectionSize = GetPrivateProfileSection("Global", szSection, 2048, szFilename);
+	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_GLOBAL, szSection, 2048, szFilename);
 	SectionToCurrProfileBool(szSection, PO_DGVOODOO_MODE, FALSE);
 	SectionToCurrProfileFloat(szSection, PO_INTRODUCTION_TIME, 30.0f);
+	SectionToCurrProfileString(szSection, PO_DEFAULT_PROFILE);
 
 	if (!szProfile)
-		szProfile = "Clean";
+		szProfile = GetCurrProfileString(PO_DEFAULT_PROFILE);
 	
 	dwSectionSize = GetPrivateProfileSection(szProfile, szSection, 2048, szFilename);
 	if (!dwSectionSize)
 	{
-		szProfile = "Clean";
+		szProfile = PROFILE_CLEAN;
 		dwSectionSize = GetPrivateProfileSection(szProfile, szSection, 2048, szFilename);
 	}
 	strcpy(g_szProfile, szProfile);	
@@ -84,6 +85,8 @@ void ReadConfig(char* szFilename, char* szProfile)
 	SectionToCurrProfileBool(szSection, PO_DONT_SHUTDOWN_RENDERER, FALSE);
 	SectionToCurrProfileBool(szSection, PO_SHOW_FPS, FALSE);
 	SectionToCurrProfileDWord(szSection, PO_FRAME_LIMITER_SLEEP, 0);
+	SectionToCurrProfileBool(szSection, PO_ENABLE_CONSOLE, FALSE);
+	SectionToCurrProfileBool(szSection, PO_NO_ENVMAP_CONSOLE_PRINT, FALSE);
 	//SectionToCurrProfileFloat(szSection, PO_CAMERA_FOV_SCALER, 1.0f);
 	
 	float fFOVXScaler = GetSectionFloat(szSection, GetCurrProfileOption(PO_CAMERA_FOV_SCALER), 1.0f);
@@ -565,6 +568,7 @@ void CreateFrameRateFontSurface()
 	}
 }*/
 
+BOOL bConsoleIntroDrawn = FALSE;
 void DrawIntroduction()
 {
 	if (!g_hIntroductionSurface[0])
@@ -574,6 +578,16 @@ void DrawIntroduction()
 
 	for (int i = 0; i < INTRODUCTION_LINES; i++)
 		g_pLTClient->DrawSurfaceToSurfaceTransparent(hScreen, g_hIntroductionSurface[i], NULL, 5, 5 + (i * INTRODUCTION_FONT_HEIGHT + 2), 0);
+
+	if (!bConsoleIntroDrawn)
+	{
+		bConsoleIntroDrawn = TRUE;
+
+		DWORD dwOldColor = *g_pnConTextColor;
+		*g_pnConTextColor = 0x00FF00FF;
+		ILTCSBase_CPrint(g_pLTClient, APP_NAME, APP_VERSION);
+		*g_pnConTextColor = dwOldColor;
+	}
 }
 
 void DrawIntroductionF15()
@@ -752,7 +766,7 @@ DWORD MyEndOptimized2D()
 	if (GetCurrProfileBool(PO_SHOW_FPS) && g_bDrawFPS)
 		DrawFrameRate();
 	
-	if (g_bConsoleEnabled)
+	if (g_bDrawConsole)
 		Console_Draw();
 	
 	return OldEndOptimized2D();
@@ -996,6 +1010,10 @@ void HookEngineStuff2()
 	CConsole& console = *(CConsole*)(dwExeAddress + 0xE2F88);
 	g_pConsole = &console;
 
+	DWORD dwConTextColorAddr = dwExeAddress + 0x0079FA;
+	g_pnConTextColor = (DWORD*)dwConTextColorAddr;
+	EngineHack_AllowWrite(hProcess, (LPVOID)dwConTextColorAddr, 4);
+
 	DWORD* pOrigTable = (DWORD*)*(DWORD*)g_pLTClient;
 
 	ILTCSBase_CPrint = (ILTCSBase_CPrint_type)pOrigTable[39]; 	
@@ -1035,6 +1053,13 @@ void HookEngineStuff2()
 		IClientShell_Update = (IClientShell_Update_type)pOrigTable[15];
 		EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 15), (DWORD)MyIClientShell_Update, dwRead);
 
+		if (GetCurrProfileBool(PO_ENABLE_CONSOLE) && GetCurrProfileBool(PO_NO_ENVMAP_CONSOLE_PRINT))
+		{
+			BYTE anOldData[5];
+			BYTE anFiveNops[5] = { 0x90, 0x90, 0x90, 0x90, 0x90 };
+			EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + 0x22DFE), anFiveNops, anOldData, 5);
+		}
+
 		if (GetCurrProfileBool(PO_POSTPROCESS_ENABLED))
 		{
 			//OldScaleSurfaceToSurface = g_pLTClient->ScaleSurfaceToSurface;
@@ -1068,8 +1093,11 @@ void HookEngineStuff2()
 	BYTE nOld;
 	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + 0x9B5B5), &nNew, &nOld, 1);
 
-	d3d_RenderScene = (d3d_RenderScene_type)(dwDllAddress + 0x17AA0);
-	EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + 0x58470) + 0xB8), (DWORD)My_d3d_RenderScene, dwRead);
+	if (GetCurrProfileBool(PO_POSTPROCESS_ENABLED))
+	{
+		d3d_RenderScene = (d3d_RenderScene_type)(dwDllAddress + 0x17AA0);
+		EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + 0x58470) + 0xB8), (DWORD)My_d3d_RenderScene, dwRead);
+	}
 }
 
 void ApplyLightLoad_Fix()
