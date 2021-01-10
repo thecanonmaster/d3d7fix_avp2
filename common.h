@@ -128,6 +128,8 @@ extern int g_nLastFrameRate;
 #define PROFILE_CLEAN				"Clean"
 #define PROFILE_DEDICATED_SERVER	"Dedicated_Server"
 
+#define LA_ALIEN_VISION				"StarLightView_Alien__SV"
+
 #define DS_INTRO_DELAY				10.0f
 
 #define POSTPROCESSING_RES			256.0f

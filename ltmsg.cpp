@@ -197,13 +197,13 @@ void ApplyIntelHD_RHW_Fix()
 	logf("Applying IntelHD RHW fix");
 	
 	float fIntelHDFix = 0.5f;
-	TLVertex* pVert = (TLVertex*)(dwDLLAddress + 0x58500);
+	TLVertex* pVert = (TLVertex*)(dwDLLAddress + ADDR_LIGHTADD_POLY_RHW); // 0x58500
 	pVert[0].rhw = fIntelHDFix;
 	pVert[1].rhw = fIntelHDFix;
 	pVert[2].rhw = fIntelHDFix;
 	pVert[3].rhw = fIntelHDFix;
 	
-	pVert = (TLVertex*)(dwDLLAddress + 0x58668);
+	pVert = (TLVertex*)(dwDLLAddress + ADDR_LIGHTSCALE_POLY_RHW); // 0x58668
 	pVert[0].rhw = fIntelHDFix;
 	pVert[1].rhw = fIntelHDFix;
 	pVert[2].rhw = fIntelHDFix;
@@ -800,7 +800,7 @@ typedef int (*d3d_RenderScene_type)(SceneDesc *pDesc);
 int (*d3d_RenderScene)(SceneDesc *pDesc);
 int My_d3d_RenderScene(SceneDesc* pDesc)
 {
-	if (pDesc->m_DrawMode == DRAWMODE_OBJECTLIST)
+	if (pDesc->m_DrawMode == DRAWMODE_OBJECTLIST || g_bDrawConsole)
 		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_MENU);
 	else
 		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY);
@@ -960,16 +960,20 @@ void HookDSStuff1()
 
 void HookEngineStuff1()
 {
-	logf("Hooking engine stuff #1");
+#ifdef PRIMAL_HUNT_BUILD
+	logf("Hooking engine stuff #1 (Primal Hunt)");
+#else
+	logf("Hooking engine stuff #1 (AVP2)");
+#endif
 	
 	DWORD dwRead;
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
 	
-	EngineHack_WriteFunction(hProcess, (LPVOID)(dwExeAddress + 0x0C6100), (DWORD)MyLoadLibraryA, dwRead);
+	EngineHack_WriteFunction(hProcess, (LPVOID)(dwExeAddress + ADDR_LOAD_LIBRARY), (DWORD)MyLoadLibraryA, dwRead); // 0x0C6100
 
 	DWORD dwEnum = (DWORD)MyDIEnumDevicesCallback;
-	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + 0x03EEC6), (BYTE*)&dwEnum, (BYTE*)&dwRead, 4);
+	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_ENUM_DEVICES_CALLBACK), (BYTE*)&dwEnum, (BYTE*)&dwRead, 4); // 0x03EEC6
 	DIEnumDevicesCallback = (DIEnumDevicesCallback_type)dwRead;
 }
 
@@ -985,7 +989,7 @@ DWORD __fastcall MyILTLightAnim_SetLightAnimInfo(ILTLightAnim* pInterface, void*
 		else if (fMod > 1.0f) 
 			fMod = 1.0f;
 
-		info.m_fBlendPercent *= fMod;	
+		info.m_fBlendPercent *= fMod;
 	}
 	else
 	{
@@ -995,6 +999,13 @@ DWORD __fastcall MyILTLightAnim_SetLightAnimInfo(ILTLightAnim* pInterface, void*
 	return ILTLightAnim_SetLightAnimInfo(pInterface, pEDX, hLightAnim, info);
 }
 
+/*typedef DWORD (__fastcall *ILTLightAnim_FindLightAnim_type)(ILTLightAnim* pInterface, void* pEDX, const char *pName, DWORD &hLightAnim);
+DWORD (__fastcall *ILTLightAnim_FindLightAnim)(ILTLightAnim* pInterface, void* pEDX, const char *pName, DWORD &hLightAnim);
+DWORD __fastcall MyILTLightAnim_FindLightAnim(ILTLightAnim* pInterface, void* pEDX, const char *pName, DWORD &hLightAnim)
+{
+	return ILTLightAnim_FindLightAnim(pInterface, pEDX, pName, hLightAnim);
+}*/
+
 void HookEngineStuff2()
 {
 	logf("Hooking engine stuff #2");
@@ -1003,28 +1014,28 @@ void HookEngineStuff2()
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
-	g_pClientMgr = (CClientMgrBase*)(dwExeAddress + 0xDEFAC);
-	g_pServerMgr = (CServerMgrBase*)(dwExeAddress + 0xE5DC8);
+	g_pClientMgr = (CClientMgrBase*)(dwExeAddress + ADDR_CLIENT_MGR); // 0xDEFAC
+	g_pServerMgr = (CServerMgrBase*)(dwExeAddress + ADDR_SERVER_MGR); // 0xE5DC8
 	g_pLTClient = g_pClientMgr->m_pClientMgr->m_pLTClient;
 
-	CConsole& console = *(CConsole*)(dwExeAddress + 0xE2F88);
+	CConsole& console = *(CConsole*)(dwExeAddress + ADDR_CONSOLE); // 0xE2F88
 	g_pConsole = &console;
 
-	DWORD dwConTextColorAddr = dwExeAddress + 0x0079FA;
+	DWORD dwConTextColorAddr = dwExeAddress + ADDR_CONSOLE_TEXT_COLOR; // 0x0079FA
 	g_pnConTextColor = (DWORD*)dwConTextColorAddr;
 	EngineHack_AllowWrite(hProcess, (LPVOID)dwConTextColorAddr, 4);
 
 	DWORD* pOrigTable = (DWORD*)*(DWORD*)g_pLTClient;
 
-	ILTCSBase_CPrint = (ILTCSBase_CPrint_type)pOrigTable[39]; 	
-	ILTCSBase_CreateString = (ILTCSBase_CreateString_type)pOrigTable[46];
-	ILTCSBase_FreeString = (ILTCSBase_FreeString_type)pOrigTable[47];
+	ILTCSBase_CPrint = (ILTCSBase_CPrint_type)pOrigTable[V_CSBASE_CPRINT]; // 39	
+	ILTCSBase_CreateString = (ILTCSBase_CreateString_type)pOrigTable[V_CSBASE_CREATE_STRING]; // 46
+	ILTCSBase_FreeString = (ILTCSBase_FreeString_type)pOrigTable[V_CSBASE_FREE_STRING]; // 47
 	
-	ILTCSBase_GetStringData = (ILTCSBase_GetStringData_type)pOrigTable[50];
-	ILTCSBase_GetVarValueFloat = (ILTCSBase_GetVarValueFloat_type)pOrigTable[51];
-	ILTCSBase_GetVarValueString = (ILTCSBase_GetVarValueString_type)pOrigTable[52];
-	ILTCSBase_GetTime = (ILTCSBase_GetTime_type)pOrigTable[53];
-	ILTCSBase_GetFrameTime = (ILTCSBase_GetFrameTime_type)pOrigTable[54];
+	ILTCSBase_GetStringData = (ILTCSBase_GetStringData_type)pOrigTable[V_CSBASE_GET_STRING_DATA]; // 50
+	ILTCSBase_GetVarValueFloat = (ILTCSBase_GetVarValueFloat_type)pOrigTable[V_CSBASE_GET_VAR_FLOAT]; // 51
+	ILTCSBase_GetVarValueString = (ILTCSBase_GetVarValueString_type)pOrigTable[V_CSBASE_GET_VAR_STRING]; // 52
+	ILTCSBase_GetTime = (ILTCSBase_GetTime_type)pOrigTable[V_CSBASE_GET_TIME]; // 53
+	ILTCSBase_GetFrameTime = (ILTCSBase_GetFrameTime_type)pOrigTable[V_CSBASE_GET_FRAME_TIME]; // 54
 	
 	char* szProfile = NULL;
 	DWORD hProfile = g_pLTClient->GetConsoleVar(CVAR_PROFILE);
@@ -1057,19 +1068,22 @@ void HookEngineStuff2()
 		{
 			BYTE anOldData[5];
 			BYTE anFiveNops[5] = { 0x90, 0x90, 0x90, 0x90, 0x90 };
-			EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + 0x22DFE), anFiveNops, anOldData, 5);
+			EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_CONSOLE_ENVMAP_PRINT), anFiveNops, anOldData, 5); // 0x22DFE
 		}
 
 		if (GetCurrProfileBool(PO_POSTPROCESS_ENABLED))
 		{
 			//OldScaleSurfaceToSurface = g_pLTClient->ScaleSurfaceToSurface;
 			//g_pLTClient->ScaleSurfaceToSurface = MyScaleSurfaceToSurface;
-			d3d_BlitToScreen = (d3d_BlitToScreen_type)(dwDllAddress + 0x1DE1C);
-			EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + 0x58470) + 0xF4), (DWORD)My_d3d_BlitToScreen, dwRead);
+			d3d_BlitToScreen = (d3d_BlitToScreen_type)(dwDllAddress + ADDR_D3D_BLIT_TO_SCREEN); // 0x1DE1C
+			EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + ADDR_D3D_RENDER_STRUCT) + ADDR_D3D_BLIT_TO_SCREEN_TABLE), (DWORD)My_d3d_BlitToScreen, dwRead); // 0x58470 0xF4
 
 			pOrigTable = (DWORD*)*(DWORD*)g_pLTClient->m_pLightAnimLT;	
 			ILTLightAnim_SetLightAnimInfo = (ILTLightAnim_SetLightAnimInfo_type)pOrigTable[3];
 			EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 3), (DWORD)MyILTLightAnim_SetLightAnimInfo, dwRead);
+
+			//ILTLightAnim_FindLightAnim = (ILTLightAnim_FindLightAnim_type)pOrigTable[0];
+			//EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 0), (DWORD)MyILTLightAnim_FindLightAnim, dwRead);
 		}
 	}
 	
@@ -1091,12 +1105,12 @@ void HookEngineStuff2()
 	
 	BYTE nNew = 0x03;
 	BYTE nOld;
-	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + 0x9B5B5), &nNew, &nOld, 1);
+	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_CREATE_FONT_QUALITY), &nNew, &nOld, 1); // 0x9B5B5
 
 	if (GetCurrProfileBool(PO_POSTPROCESS_ENABLED))
 	{
-		d3d_RenderScene = (d3d_RenderScene_type)(dwDllAddress + 0x17AA0);
-		EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + 0x58470) + 0xB8), (DWORD)My_d3d_RenderScene, dwRead);
+		d3d_RenderScene = (d3d_RenderScene_type)(dwDllAddress + ADDR_D3D_RENDER_SCENE); // 0x17AA0
+		EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + ADDR_D3D_RENDER_STRUCT) + ADDR_D3D_RENDER_SCENE_TABLE), (DWORD)My_d3d_RenderScene, dwRead); // 0x58470 0xB8
 	}
 }
 
@@ -1108,7 +1122,7 @@ void ApplyLightLoad_Fix()
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 	//DWORD dwRenderStruct = dwDllAddress + 0x58470;
 
-	EngineHack_WriteCall(hProcess, (LPVOID)(DWORD(dwDllAddress) + 0x34CF2), (DWORD)FakeD3DDevice_Load, TRUE);
+	EngineHack_WriteCall(hProcess, (LPVOID)(DWORD(dwDllAddress) + ADDR_D3DDEVICE_LOAD_CALL), (DWORD)FakeD3DDevice_Load, TRUE); // 0x34CF2
 }
 
 BOOL* g_pDetailTextureCapable;
@@ -1347,7 +1361,7 @@ HMODULE WINAPI MyLoadLibraryA(LPCSTR lpFileName)
 		HANDLE hProcess = GetCurrentProcess();
 		DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 		
-		EngineHack_WriteFunction(hProcess, (LPVOID)(dwDllAddress + 0x46000), (DWORD)FakeDirectDrawCreateEx, g_dwOriginalD3D);
+		EngineHack_WriteFunction(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_DDRAW_CREATE_EX), (DWORD)FakeDirectDrawCreateEx, g_dwOriginalD3D); // 0x46000
 	}
 
 	return hModule;
