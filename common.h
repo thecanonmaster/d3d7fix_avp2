@@ -43,6 +43,7 @@ enum eProfileOption
 	PO_POSTPROCESS_ENABLED,
 	PO_POSTPROCESS_INTENSITY,
 	PO_POSTPROCESS_INTENSITY_MENU,
+	PO_POSTPROCESS_INTENSITY_VM,
 	EXT_BAN_MANAGER,
 	EXT_MOTD_TIMER,
 	EXT_MOTD_STRING,
@@ -110,10 +111,19 @@ extern LONG g_lRMILastY;
 extern int g_nLastFrameRate;
 
 #ifdef _DEBUG
+#ifdef PRIMAL_HUNT_BUILD
+	#define APP_NAME		"D3D7FIX v%.2f for AVP2 Primal Hunt (ltmsg.dll, DEBUG)"
+#else
 	#define APP_NAME		"D3D7FIX v%.2f for Aliens vs Predator 2 (ltmsg.dll, DEBUG)"
+#endif
+#else
+#ifdef PRIMAL_HUNT_BUILD
+	#define APP_NAME		"D3D7FIX v%.2f for AVP2 Primal Hunt (ltmsg.dll)"
 #else
 	#define APP_NAME		"D3D7FIX v%.2f for Aliens vs Predator 2 (ltmsg.dll)"
 #endif
+#endif
+
 #define APP_NAME_SHORT	"D3D7FIX v%.2f"
 #define APP_VERSION		0.31f
 #define CVAR_PROFILE	"D3D7FixProfile"
@@ -127,8 +137,6 @@ extern int g_nLastFrameRate;
 #define PROFILE_GLOBAL				"Global"
 #define PROFILE_CLEAN				"Clean"
 #define PROFILE_DEDICATED_SERVER	"Dedicated_Server"
-
-#define LA_ALIEN_VISION				"StarLightView_Alien__SV"
 
 #define DS_INTRO_DELAY				10.0f
 
@@ -152,6 +160,8 @@ extern int g_nLastFrameRate;
 #define FLIPSCREEN_CANDRAWCONSOLE	(1<<0)
 #define FLIPSCREEN_COPY				(1<<1)
 #define FLIPSCREEN_DIRTY			(1<<2)
+
+#define FIND_FREE_SLOT_SIZE_OVERRIDE	64
 
 #define DIDEVTYPE_MOUSE         2
 #define DIDEVTYPE_KEYBOARD      3

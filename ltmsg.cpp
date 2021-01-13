@@ -123,6 +123,7 @@ void ReadConfig(char* szFilename, char* szProfile)
 	SectionToCurrProfileBool(szSection, PO_POSTPROCESS_ENABLED, FALSE);
 	SectionToCurrProfileDWord(szSection, PO_POSTPROCESS_INTENSITY, 32);
 	SectionToCurrProfileDWord(szSection, PO_POSTPROCESS_INTENSITY_MENU, 16);
+	SectionToCurrProfileDWord(szSection, PO_POSTPROCESS_INTENSITY_VM, 8);
 
 	if (GetCurrProfileBool(PO_DGVOODOO_MODE))
 	{
@@ -197,13 +198,13 @@ void ApplyIntelHD_RHW_Fix()
 	logf("Applying IntelHD RHW fix");
 	
 	float fIntelHDFix = 0.5f;
-	TLVertex* pVert = (TLVertex*)(dwDLLAddress + ADDR_LIGHTADD_POLY_RHW); // 0x58500
+	TLVertex* pVert = (TLVertex*)(dwDLLAddress + ADDR_D3D_LIGHTADD_POLY_RHW); // 0x58500
 	pVert[0].rhw = fIntelHDFix;
 	pVert[1].rhw = fIntelHDFix;
 	pVert[2].rhw = fIntelHDFix;
 	pVert[3].rhw = fIntelHDFix;
 	
-	pVert = (TLVertex*)(dwDLLAddress + ADDR_LIGHTSCALE_POLY_RHW); // 0x58668
+	pVert = (TLVertex*)(dwDLLAddress + ADDR_D3D_LIGHTSCALE_POLY_RHW); // 0x58668
 	pVert[0].rhw = fIntelHDFix;
 	pVert[1].rhw = fIntelHDFix;
 	pVert[2].rhw = fIntelHDFix;
@@ -796,12 +797,15 @@ DWORD MyCreateObject(ObjectCreateStruct *pStruct)
 	return OldCreateObject(pStruct);
 }
 
+BOOL g_bVisionModeEnabled = FALSE;
 typedef int (*d3d_RenderScene_type)(SceneDesc *pDesc);
 int (*d3d_RenderScene)(SceneDesc *pDesc);
 int My_d3d_RenderScene(SceneDesc* pDesc)
 {
 	if (pDesc->m_DrawMode == DRAWMODE_OBJECTLIST || g_bDrawConsole)
 		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_MENU);
+	else if (g_bVisionModeEnabled)
+		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_VM);
 	else
 		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY);
 	
@@ -981,6 +985,8 @@ typedef DWORD (__fastcall *ILTLightAnim_SetLightAnimInfo_type)(ILTLightAnim* pIn
 DWORD (__fastcall *ILTLightAnim_SetLightAnimInfo)(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info);
 DWORD __fastcall MyILTLightAnim_SetLightAnimInfo(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info)
 {
+	g_bVisionModeEnabled = FALSE;
+
 	if (!info.m_iFrames[0] && !info.m_iFrames[1])
 	{
 		float fMod = (1.0f - ((float)GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY) / 255.0f)) * 1.5f;
@@ -990,6 +996,7 @@ DWORD __fastcall MyILTLightAnim_SetLightAnimInfo(ILTLightAnim* pInterface, void*
 			fMod = 1.0f;
 
 		info.m_fBlendPercent *= fMod;
+		g_bVisionModeEnabled = TRUE;
 	}
 	else
 	{
@@ -1267,7 +1274,7 @@ void ApplyDynamicLightSurfaces_Fix()
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 
-	DWORD* dwSurfaceCounts = (DWORD*)(dwDllAddress + 0x4BF50);
+	DWORD* dwSurfaceCounts = (DWORD*)(dwDllAddress + ADDR_D3D_DLIGHT_SURFACE_COUNTS); // 0x4BF50
 	dwSurfaceCounts[0] = 256;
 	dwSurfaceCounts[1] = 256;
 	dwSurfaceCounts[2] = 256;
@@ -1280,7 +1287,7 @@ DWORD (*r_FindFreeSlot)(void *pContext, DWORD dwWidth, DWORD dwHeight, DWORD *nX
 
 DWORD My_r_FindFreeSlot(void *pContext, DWORD dwWidth, DWORD dwHeight, DWORD *nX, DWORD *nY, void **param_6)
 {
-	return r_FindFreeSlot(pContext, 64, 64, nX, nY, param_6);
+	return r_FindFreeSlot(pContext, FIND_FREE_SLOT_SIZE_OVERRIDE, FIND_FREE_SLOT_SIZE_OVERRIDE, nX, nY, param_6);
 }
 
 void ApplyStaticLightSurfaces_Fix()
@@ -1290,8 +1297,8 @@ void ApplyStaticLightSurfaces_Fix()
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 	
-	r_FindFreeSlot = (r_FindFreeSlot_type)(dwDllAddress + 0x34000);
-	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x342FC), (DWORD)My_r_FindFreeSlot, FALSE);	
+	r_FindFreeSlot = (r_FindFreeSlot_type)(dwDllAddress + ADDR_D3D_FIND_FREE_SLOT); // 0x34000
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_FIND_FREE_SLOT_CALL), (DWORD)My_r_FindFreeSlot, FALSE); // 0x342FC
 }
 
 DWORD g_dwOriginalD3D = 0;

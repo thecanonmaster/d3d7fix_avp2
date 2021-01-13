@@ -60,6 +60,7 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "PP_Enabled"),
 	ProfileOption(POT_DWORD, "PP_Intensity"),
 	ProfileOption(POT_DWORD, "PP_IntensityMenu"),
+	ProfileOption(POT_DWORD, "PP_IntensityVisionModes"),
 	ProfileOption(POT_BYTE, "Ext_BanManager"),
 	ProfileOption(POT_FLOAT, "Ext_MOTDTimer"),
 	ProfileOption(POT_STRING, "Ext_MOTDString"),
