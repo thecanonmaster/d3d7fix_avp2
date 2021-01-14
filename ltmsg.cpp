@@ -3,9 +3,15 @@
 typedef HRESULT (WINAPI* DirectDrawCreate_Type)(GUID FAR *, LPDIRECTDRAW FAR *, IUnknown FAR *);
 typedef HRESULT (WINAPI* DirectDrawCreateEx_Type)( GUID FAR *, LPVOID *, REFIID,IUnknown FAR *);
 HMODULE WINAPI MyLoadLibraryA(LPCSTR lpFileName);
-void ApplyTimeCalibrationDS_Fix();
+
 void HookEngineStuff1();
+
+#ifndef PRIMAL_HUNT_BUILD
+
 void HookDSStuff1();
+void ApplyTimeCalibrationDS_Fix();
+
+#endif
 
 HRESULT __stdcall FakeD3DDevice_Load(LPDIRECT3DDEVICE7 lpDevice, LPDIRECTDRAWSURFACE7 lpDestTex,LPPOINT lpDestPoint,LPDIRECTDRAWSURFACE7 lpSrcTex,LPRECT lprcSrcRect,DWORD dwFlags)
 {
@@ -19,6 +25,8 @@ void GetD3D7FixVersion(char* szBuffer, BOOL bFullInfo)
 	else
 		sprintf(szBuffer, "%.2f", APP_VERSION);
 }
+
+#ifndef PRIMAL_HUNT_BUILD
 
 void ReadConfigDS(char* szFilename)
 {
@@ -57,6 +65,8 @@ void ReadConfigDS(char* szFilename)
 	
 	LogCurrProfile();
 }
+
+#endif
 
 void ReadConfig(char* szFilename, char* szProfile)
 {
@@ -162,12 +172,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				timeBeginPeriod(1);
 				HookEngineStuff1();
 			}
+#ifndef PRIMAL_HUNT_BUILD
 			else if (strstr(g_szParentExeFilename, "Server"))
 			{
 				g_LogFile = fopen(LTMSG_LOG, "w");
 				timeBeginPeriod(1);
 				HookDSStuff1();
 			}
+#endif
 		}
 		break;
 
@@ -180,12 +192,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				FontList_Clear(FALSE);
 				fclose( g_LogFile );
 			}
+#ifndef PRIMAL_HUNT_BUILD
 			else if (strstr(g_szParentExeFilename, "Server"))
 			{
 				BanList_Free();
 				timeEndPeriod(1);
 				fclose( g_LogFile );
 			}
+#endif
 		}
 		break;
 	}
@@ -837,6 +851,8 @@ void My_d3d_BlitToScreen(BlitRequest *pRequest)
 	d3d_BlitToScreen(pRequest);
 }
 
+#ifndef PRIMAL_HUNT_BUILD
+
 void SendMessageFromServerApp(char* szText)
 {
 	char szBuffer[256] = { SERVERSHELL_MESSAGE };
@@ -920,14 +936,14 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
 	
-	g_pServerMgr = (CServerMgrBase*)(dwDllAddress + 0x80E6C);
+	g_pServerMgr = (CServerMgrBase*)(dwDllAddress + ADDR_DS_SERVER_MGR); // 0x80E6C
 	g_pLTServer = g_pServerMgr->m_pServerMgr->m_pLTServer;
-	g_pClassMgr = (CClassMgrBase*)(dwDllAddress + 0x80E70);
+	g_pClassMgr = (CClassMgrBase*)(dwDllAddress + ADDR_DS_CLASS_MGR); // 0x80E70
 
 	DWORD* pOrigTable = (DWORD*)*(DWORD*)g_pLTServer;	
-	ILTCSBase_CPrint = (ILTCSBase_CPrint_type)pOrigTable[39]; 
-	ILTCSBase_GetTime = (ILTCSBase_GetTime_type)pOrigTable[53];
-	ILTCSBase_GetFrameTime = (ILTCSBase_GetFrameTime_type)pOrigTable[54];
+	ILTCSBase_CPrint = (ILTCSBase_CPrint_type)pOrigTable[V_CSBASE_CPRINT]; // 39
+	ILTCSBase_GetTime = (ILTCSBase_GetTime_type)pOrigTable[V_CSBASE_GET_TIME]; // 53
+	ILTCSBase_GetFrameTime = (ILTCSBase_GetFrameTime_type)pOrigTable[V_CSBASE_GET_FRAME_TIME]; // 54
 
 	ReadConfigDS(".\\ltmsg.ini");
 	
@@ -935,16 +951,16 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 		ApplyTimeCalibrationDS_Fix();
 
 	pOrigTable = (DWORD*)*(DWORD*)g_pServerMgr->m_pServerMgr->m_pServerShell;	
-	IServerShell_Update = (IServerShell_Update_type)pOrigTable[15];
-	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 15), (DWORD)MyIServerShell_Update, dwRead);
-	IServerShell_VerifyClient = (IServerShell_VerifyClient_type)pOrigTable[4];
-	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 4), (DWORD)MyIServerShell_VerifyClient, dwRead);
-	IServerShell_PostStartWorld = (IServerShell_PostStartWorld_type)pOrigTable[8];
-	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 8), (DWORD)MyIServerShell_PostStartWorld, dwRead);
+	IServerShell_Update = (IServerShell_Update_type)pOrigTable[V_SSHELL_UPDATE]; // 15
+	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_UPDATE), (DWORD)MyIServerShell_Update, dwRead); // 15
+	IServerShell_VerifyClient = (IServerShell_VerifyClient_type)pOrigTable[V_SSHELL_VERIFY_CLIENT]; // 4
+	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_VERIFY_CLIENT), (DWORD)MyIServerShell_VerifyClient, dwRead); // 4
+	IServerShell_PostStartWorld = (IServerShell_PostStartWorld_type)pOrigTable[V_SSHELL_POST_START_WORLD]; // 8
+	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_POST_START_WORLD), (DWORD)MyIServerShell_PostStartWorld, dwRead); // 8
 
 	if (GetCurrProfileFloat(EXT_MOTD_TIMER))
 	{
-		IServerShell_ServerAppMessageFn = (IServerShell_ServerAppMessageFn_type)pOrigTable[1];
+		IServerShell_ServerAppMessageFn = (IServerShell_ServerAppMessageFn_type)pOrigTable[V_SSHELL_SERVER_APP_MESSAGE_FN]; // 1
 		//EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 1), (DWORD)MyIServerShell_ServerAppMessageFn, dwRead);
 	}
 
@@ -958,9 +974,11 @@ void HookDSStuff1()
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
 
-	LoadServerBinaries = (LoadServerBinaries_type)(dwDllAddress + 0x1928);
-	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x3C40E), (DWORD)MyLoadServerBinaries, FALSE);
+	LoadServerBinaries = (LoadServerBinaries_type)(dwDllAddress + ADDR_DS_LOAD_BINARIES); // 0x1928
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + ADDR_DS_LOAD_BINARIES_CALL), (DWORD)MyLoadServerBinaries, FALSE); // 0x3C40E
 }
+
+#endif
 
 void HookEngineStuff1()
 {
@@ -1068,8 +1086,8 @@ void HookEngineStuff2()
 		g_pLTClient->EndOptimized2D = MyEndOptimized2D;
 		g_pLTClient->CreateObject = MyCreateObject;
 		
-		IClientShell_Update = (IClientShell_Update_type)pOrigTable[15];
-		EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 15), (DWORD)MyIClientShell_Update, dwRead);
+		IClientShell_Update = (IClientShell_Update_type)pOrigTable[V_CSHELL_UPDATE]; // 15
+		EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_CSHELL_UPDATE), (DWORD)MyIClientShell_Update, dwRead); // 15
 
 		if (GetCurrProfileBool(PO_ENABLE_CONSOLE) && GetCurrProfileBool(PO_NO_ENVMAP_CONSOLE_PRINT))
 		{
@@ -1149,9 +1167,9 @@ void ApplyTWMDetailTex_Fix()
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 
-	g_pDetailTextureCapable = (BOOL*)(dwDllAddress + 0x5DE2C);
-	sub_3F0A2A7 = (sub_3F0A2A7_type)(dwDllAddress + 0xA2A7);
-	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x9C5A), (DWORD)My_sub_3F0A2A7, FALSE);
+	g_pDetailTextureCapable = (BOOL*)(dwDllAddress + ADDR_D3D_DETAIL_TEX_CAPABLE); // 0x5DE2C
+	sub_3F0A2A7 = (sub_3F0A2A7_type)(dwDllAddress + ADDR_D3D_SUB_3F0A2A7); // 0xA2A7
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_SUB_3F0A2A7_CALL), (DWORD)My_sub_3F0A2A7, FALSE); // 0x9C5A
 }
 
 float g_fServerFrameTimeClamp = 0.0f;
@@ -1216,20 +1234,22 @@ void ApplyTimeCalibration_Fix()
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
 
-	dsi_ClientSleep = (dsi_ClientSleep_type)(dwExeAddress + 0x35070);
-	EngineHack_WriteCall(hProcess, (LPVOID)(dwExeAddress + 0x10E06), (DWORD)My_dsi_ClientSleep, FALSE);
+	dsi_ClientSleep = (dsi_ClientSleep_type)(dwExeAddress + ADDR_CLIENT_SLEEP); // 0x35070
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwExeAddress + ADDR_CLIENT_SLEEP_CALL), (DWORD)My_dsi_ClientSleep, FALSE); // 0x10E06
 
-	pd_Update = (pd_Update_type)(DWORD(dwExeAddress) + 0x6E250);
-	EngineHack_WriteCall(hProcess, (LPVOID)(dwExeAddress + 0x15374), (DWORD)My_pd_Update, FALSE);
+	pd_Update = (pd_Update_type)(DWORD(dwExeAddress) + ADDR_PD_UPDATE); // 0x6E250
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwExeAddress + ADDR_PD_UPDATE_CALL), (DWORD)My_pd_Update, FALSE); // 0x15374
 
 	DWORD dwNew = (DWORD)(&g_fServerFrameTimeClamp);
 	BYTE anOld[4];
-	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + 0x83688), (BYTE*)(&dwNew), anOld, 4);
-	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + 0x8369D), (BYTE*)(&dwNew), anOld, 4);
+	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_SERVER_FRAMETIME_CLAMP1), (BYTE*)(&dwNew), anOld, 4); // 0x83688
+	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_SERVER_FRAMETIME_CLAMP2), (BYTE*)(&dwNew), anOld, 4); // 0x8369D
 
-	UpdateSounds = (UpdateSounds_type)(dwExeAddress + 0x83370);
-	EngineHack_WriteCall(hProcess, (LPVOID)(dwExeAddress + 0x836D7), (DWORD)MyUpdateSounds, FALSE);
+	UpdateSounds = (UpdateSounds_type)(dwExeAddress + ADDR_UPDATE_SOUNDS); // 0x83370
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwExeAddress + ADDR_UPDATE_SOUNDS_CALL), (DWORD)MyUpdateSounds, FALSE); // 0x836D7
 }
+
+#ifndef PRIMAL_HUNT_BUILD
 
 void ApplyTimeCalibrationDS_Fix()
 {
@@ -1238,17 +1258,19 @@ void ApplyTimeCalibrationDS_Fix()
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
 
-	UpdateSounds = (UpdateSounds_type)(dwDllAddress + 0x3CA4B);
-	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x3CD72), (DWORD)MyUpdateSounds, FALSE);
+	UpdateSounds = (UpdateSounds_type)(dwDllAddress + ADDR_DS_UPDATE_SOUNDS); // 0x3CA4B
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + ADDR_DS_UPDATE_SOUNDS_CALL), (DWORD)MyUpdateSounds, FALSE); // 0x3CD72
 
 	DWORD dwNew = (DWORD)(&g_fServerFrameTimeClamp);
 	BYTE anOld[4];
-	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + 0x3CD23), (BYTE*)(&dwNew), anOld, 4);
-	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + 0x3CD38), (BYTE*)(&dwNew), anOld, 4);
+	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + ADDR_DS_SERVER_FRAMETIME_CLAMP1), (BYTE*)(&dwNew), anOld, 4); // 0x3CD23
+	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + ADDR_DS_SERVER_FRAMETIME_CLAMP2), (BYTE*)(&dwNew), anOld, 4); // 0x3CD38
 
-	float& fServerFPS = *(float*)(dwDllAddress + 0x70EC0);
+	float& fServerFPS = *(float*)(dwDllAddress + ADDR_DS_SERVER_FPS); // 0x70EC0
 	fServerFPS = GetCurrProfileFloat(PO_SERVER_FPS);
 }
+
+#endif
 
 DWORD (*OldFlipScreen)(DWORD flags);
 DWORD MyFlipScreen(DWORD flags)
@@ -1275,11 +1297,11 @@ void ApplyDynamicLightSurfaces_Fix()
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 
 	DWORD* dwSurfaceCounts = (DWORD*)(dwDllAddress + ADDR_D3D_DLIGHT_SURFACE_COUNTS); // 0x4BF50
-	dwSurfaceCounts[0] = 256;
-	dwSurfaceCounts[1] = 256;
-	dwSurfaceCounts[2] = 256;
-	dwSurfaceCounts[3] = 256;
-	dwSurfaceCounts[4] = 256;
+	dwSurfaceCounts[0] = DLIGHT_SURFACES_COUNT_OVERRIDE;
+	dwSurfaceCounts[1] = DLIGHT_SURFACES_COUNT_OVERRIDE;
+	dwSurfaceCounts[2] = DLIGHT_SURFACES_COUNT_OVERRIDE;
+	dwSurfaceCounts[3] = DLIGHT_SURFACES_COUNT_OVERRIDE;
+	dwSurfaceCounts[4] = DLIGHT_SURFACES_COUNT_OVERRIDE;
 }
 
 typedef DWORD (*r_FindFreeSlot_type)(void *pContext, DWORD dwWidth, DWORD dwHeight, DWORD *nX, DWORD *nY, void **param_6);

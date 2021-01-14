@@ -161,6 +161,7 @@ extern int g_nLastFrameRate;
 #define FLIPSCREEN_COPY				(1<<1)
 #define FLIPSCREEN_DIRTY			(1<<2)
 
+#define DLIGHT_SURFACES_COUNT_OVERRIDE	256
 #define FIND_FREE_SLOT_SIZE_OVERRIDE	64
 
 #define DIDEVTYPE_MOUSE         2
