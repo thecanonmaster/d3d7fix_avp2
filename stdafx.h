@@ -5,7 +5,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define D3D_OVERLOADS
 
-#define PRIMAL_HUNT_BUILD
+//#define PRIMAL_HUNT_BUILD
 
 #include <windows.h>
 #include <MMSYSTEM.H>

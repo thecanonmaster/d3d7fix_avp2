@@ -11,10 +11,14 @@ struct BanItem
 typedef std::list<BanItem*> BanList;
 
 #define BAN_MGR_SECTION			"Ban_Manager"
+#define BAN_MGR_CLIENT_DATA_LEN	"ClientDataLen"
 #define BAN_MGR_NAME_OFFSET		"NameOffset"
 #define BAN_MGR_ID_OFFSET		"IdOffset"
 #define BAN_MGR_BAN				"Ban%d"
 
+#define BAN_MGR_CLIENT_REJECTED	"Client rejected"
+
+extern DWORD g_dwClientDataLen;
 extern DWORD g_dwNameOffset;
 extern DWORD g_dwIdOffset;
 extern BanList g_BanList;

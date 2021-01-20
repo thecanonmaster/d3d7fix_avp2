@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 
+DWORD g_dwClientDataLen = 0;
 DWORD g_dwNameOffset = 0;
 DWORD g_dwIdOffset = 0;
 

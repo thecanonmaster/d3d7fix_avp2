@@ -44,9 +44,10 @@ void ReadConfigDS(char* szFilename)
 	{
 		dwSectionSize = GetPrivateProfileSection(BAN_MGR_SECTION, szSection, 2048, szFilename);
 		
+		g_dwClientDataLen = GetSectionInt(szSection, BAN_MGR_CLIENT_DATA_LEN, 0);
 		g_dwNameOffset = GetSectionInt(szSection, BAN_MGR_NAME_OFFSET, 0);
 		g_dwIdOffset = GetSectionInt(szSection, BAN_MGR_ID_OFFSET, 0);
-
+		
 		char szBanKey[64];
 		char szBanValue[64];
 		int i = 0;
@@ -123,6 +124,7 @@ void ReadConfig(char* szFilename, char* szProfile)
 	SectionToCurrProfileBool(szSection, PO_DYNAMIC_LIGHT_SURFACES, FALSE);
 	SectionToCurrProfileBool(szSection, PO_FULLSCREEN_OPTIMIZE, FALSE);
 	SectionToCurrProfileBool(szSection, PO_NOVSYNC, FALSE);	
+	SectionToCurrProfileDWord(szSection, PO_UPDATE_OBJECT_LTO, 0);	
 	SectionToCurrProfileBool(szSection, PO_MISC_CC, FALSE);
 	SectionToCurrProfileBool(szSection, PO_RAW_MOUSE_INPUT, FALSE);
 	SetCurrProfileFlag(PO_RAW_MOUSE_INPUT, GetCurrProfileBool(PO_RAW_MOUSE_INPUT));
@@ -889,8 +891,33 @@ void __fastcall MyIServerShell_Update(void* pShell, float timeElapsed)
 	}	
 }
 
+typedef DWORD (__stdcall *ILTServer_GetClientData_type)(DWORD hClient, void *&pData, DWORD &nLength);
+DWORD (__stdcall *ILTServer_GetClientData)(DWORD hClient, void *&pData, DWORD &nLength);
+
 void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode)
 {
+	char szBuffer[1024];
+	
+	if (GetCurrProfileBool(EXT_BAN_MANAGER) && g_dwClientDataLen && hClient)
+	{
+		void *pData = NULL;
+		DWORD dwDataLen = 0;
+
+		ILTServer_GetClientData(hClient, pData, dwDataLen);
+
+		if (g_dwClientDataLen != dwDataLen)
+		{
+			sprintf(szBuffer, "[EXT] BanMgr: Client has invalid client data size (%d != %d)", dwDataLen, g_dwClientDataLen);
+			logf(szBuffer + 6);
+			ILTCSBase_CPrint(g_pLTServer, szBuffer);
+			SendMessageFromServerApp(BAN_MGR_CLIENT_REJECTED);
+
+			nVerifyCode = LT_DISCON_MISCCRC;
+
+			return;
+		}
+	}
+
 	IServerShell_VerifyClient(pShell, notUsed, hClient, pClientData, nVerifyCode);
 
 	if (GetCurrProfileBool(EXT_BAN_MANAGER) && hClient && pClientData)
@@ -898,7 +925,6 @@ void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD h
 		char* szName = NULL;
 		char szIP[64];
 		char* szID = NULL;
-		char szBuffer[1024];
 		
 		if (BanList_IsBanned(hClient, pClientData, &szName, szIP, &szID))
 		{		
@@ -944,6 +970,8 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	ILTCSBase_CPrint = (ILTCSBase_CPrint_type)pOrigTable[V_CSBASE_CPRINT]; // 39
 	ILTCSBase_GetTime = (ILTCSBase_GetTime_type)pOrigTable[V_CSBASE_GET_TIME]; // 53
 	ILTCSBase_GetFrameTime = (ILTCSBase_GetFrameTime_type)pOrigTable[V_CSBASE_GET_FRAME_TIME]; // 54
+
+	ILTServer_GetClientData = (ILTServer_GetClientData_type)pOrigTable[124]; // 124
 
 	ReadConfigDS(".\\ltmsg.ini");
 	
@@ -1391,6 +1419,15 @@ HMODULE WINAPI MyLoadLibraryA(LPCSTR lpFileName)
 		DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
 		
 		EngineHack_WriteFunction(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_DDRAW_CREATE_EX), (DWORD)FakeDirectDrawCreateEx, g_dwOriginalD3D); // 0x46000
+	}
+	else if ((strstr(lpFileName, OBJECT_LTO_LOWER) || strstr(lpFileName, OBJECT_LTO_UPPER)) && GetCurrProfileDWord(PO_UPDATE_OBJECT_LTO))
+	{
+		HANDLE hProcess = GetCurrentProcess();
+		DWORD dwDllAddress = (DWORD)GetModuleHandle(OBJECT_LTO_LOWER);
+
+		BYTE anOldData[3];
+		BYTE anXorEaxNop[3] = { 0x31, 0xc0, 0x90 };
+		EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + GetCurrProfileDWord(PO_UPDATE_OBJECT_LTO)), anXorEaxNop, anOldData, 3); // PH: 0xD56D5
 	}
 
 	return hModule;

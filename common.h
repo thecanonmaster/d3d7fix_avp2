@@ -38,6 +38,7 @@ enum eProfileOption
 	PO_PRELOAD_STATIC_LIGHT,
 	PO_FULLSCREEN_OPTIMIZE,
 	PO_NOVSYNC,
+	PO_UPDATE_OBJECT_LTO,
 	PO_RMI_SCALE_GLOBAL,
 	PO_RMI_SCALE_Y,
 	PO_POSTPROCESS_ENABLED,
@@ -133,6 +134,9 @@ extern int g_nLastFrameRate;
 #define SERVER_DLL		"server.dll"
 #define D3D_REN			"d3d.ren"
 #define LTMSG_LOG		"ltmsg.log"
+
+#define OBJECT_LTO_LOWER	"object.lto"
+#define OBJECT_LTO_UPPER	"object.lto"
 
 #define PROFILE_GLOBAL				"Global"
 #define PROFILE_CLEAN				"Clean"
@@ -551,6 +555,8 @@ public:
 	DWORD			(*SetCRCString)(char *szCRCFiles);
 	DWORD			(*CreateStringCRC)();
 	DWORD			(*CreateWorldCRC)();
+	DWORD			(*GetGameInfo)(void **ppData, DWORD *pLen);
+	DWORD			(*GetClass)(char *pName);
 
 };
 
