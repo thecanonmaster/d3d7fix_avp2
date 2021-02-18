@@ -95,8 +95,8 @@ extern LONG g_lRMILastY;
 
 extern int g_nLastFrameRate;
 
-#define APP_NAME		"D3D7FIX v%.2f for Aliens vs Predator 2 (ltmsg.dll)"
-#define APP_VERSION		0.21f
+#define APP_NAME		"D3D7FIX v%g for Aliens vs Predator 2 (ltmsg.dll)"
+#define APP_VERSION		0.211f
 #define CVAR_PROFILE	"D3D7FixProfile"
 
 #define FONT_LIST_UPDATE_TIME		5.0f

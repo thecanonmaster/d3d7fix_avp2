@@ -17,7 +17,7 @@ void GetD3D7FixVersion(char* szBuffer, BOOL bFullInfo)
 	if (bFullInfo)
 		sprintf(szBuffer, APP_NAME, APP_VERSION);
 	else
-		sprintf(szBuffer, "%.2f", APP_VERSION);
+		sprintf(szBuffer, "%g", APP_VERSION);
 }
 
 void ReadConfig(char* szFilename, char* szProfile)
@@ -400,7 +400,10 @@ void MyDrawStringToSurface(DWORD hDest, DWORD hFont, DWORD hString, LTRect* pRec
 	{
 		//OldDrawStringToSurface(g_pPrevFontString->m_hSurface, hFont, hString, pRect, hForeColor, hBackColor);	
 		if (std::find(g_MultiLines.begin(), g_MultiLines.end(), pString) == g_MultiLines.end())
+		{
+			g_MultiLinesIter = NULL;
 			g_MultiLines.push_back(pString);
+		}
 
 		g_pLTClient->SetSurfaceUserData(hOldDest, g_pPrevFontString);
 
@@ -779,7 +782,7 @@ void ApplyTWMDetailTex_Fix()
 	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x9C5A), (DWORD)My_sub_3F0A2A7, FALSE);
 }
 
-float g_fServerFrameTimeClamp = 0.0f;
+float g_fServerFrameTimeClamp = 0.001f;
 typedef void (*dsi_ClientSleep_type)(DWORD dwMilliseconds);
 void (__cdecl *dsi_ClientSleep)(DWORD dwMilliseconds);
 typedef void (__fastcall *UpdateSounds_type)(CServerMgr* pServerMgr, float fDeltaTime);
