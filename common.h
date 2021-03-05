@@ -113,15 +113,15 @@ extern int g_nLastFrameRate;
 
 #ifdef _DEBUG
 #ifdef PRIMAL_HUNT_BUILD
-	#define APP_NAME		"D3D7FIX v%.2f for AVP2 Primal Hunt (ltmsg.dll, DEBUG)"
+	#define APP_NAME		"D3D7FIX v%g for AVP2 Primal Hunt (ltmsg.dll, DEBUG)"
 #else
-	#define APP_NAME		"D3D7FIX v%.2f for Aliens vs Predator 2 (ltmsg.dll, DEBUG)"
+	#define APP_NAME		"D3D7FIX v%g for Aliens vs Predator 2 (ltmsg.dll, DEBUG)"
 #endif
 #else
 #ifdef PRIMAL_HUNT_BUILD
-	#define APP_NAME		"D3D7FIX v%.2f for AVP2 Primal Hunt (ltmsg.dll)"
+	#define APP_NAME		"D3D7FIX v%g for AVP2 Primal Hunt (ltmsg.dll)"
 #else
-	#define APP_NAME		"D3D7FIX v%.2f for Aliens vs Predator 2 (ltmsg.dll)"
+	#define APP_NAME		"D3D7FIX v%g for Aliens vs Predator 2 (ltmsg.dll)"
 #endif
 #endif
 
@@ -246,6 +246,36 @@ struct TLVertex
 	DWORD color1;
 	DWORD color2;
 	float tu, tv;
+};
+
+class LMPage
+{
+public:
+	BYTE		m_Data0[12];
+	BYTE*		m_UnkArray128;
+	DWORD		m_dwUnkCount;
+	BYTE		m_Data1[16];
+	LMPage*		m_pNextLMPage;
+};
+
+class RenderContext
+{
+public:
+	LMPage* m_pPage;
+	// more there
+};
+
+class WorldPoly
+{
+public:
+
+	BYTE	m_Data0[72];
+	LMPage** m_pLMPage;
+	BYTE	m_nLightmapWidth;
+	BYTE	m_nLightmapHeight;
+	BYTE	m_nLMPageX;
+	BYTE	m_nLMPageY;
+	// more there
 };
 
 /*struct SolidSurface
@@ -450,6 +480,7 @@ typedef float (__fastcall *ILTCSBase_GetFrameTime_type)(ILTCSBase* pBase);
 typedef void (__fastcall *IClientShell_Update_type)(void* pShell);
 typedef void (__fastcall *IServerShell_Update_type)(void* pShell, float timeElapsed);
 typedef void (__fastcall *IServerShell_VerifyClient_type)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
+typedef void* (__fastcall *IServerShell_OnClientEnterWorld_type)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD clientDataLen);
 typedef DWORD (__fastcall *IServerShell_ServerAppMessageFn_type)(void* pShell, void* notUsed, char *pMsg, int nLen);
 typedef void (__fastcall *IServerShell_PostStartWorld_type)(void* pShell);
 
@@ -465,6 +496,7 @@ extern float (__fastcall *ILTCSBase_GetFrameTime)(ILTCSBase* pBase);
 extern void (__fastcall *IClientShell_Update)(void* pShell);
 extern void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
 extern void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
+extern void* (__fastcall *IServerShell_OnClientEnterWorld)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD clientDataLen);
 extern DWORD (__fastcall *IServerShell_ServerAppMessageFn)(void* pShell, void* notUsed, char *pMsg, int nLen);
 extern void (__fastcall *IServerShell_PostStartWorld)(void* pShell);
 
@@ -557,7 +589,19 @@ public:
 	DWORD			(*CreateWorldCRC)();
 	DWORD			(*GetGameInfo)(void **ppData, DWORD *pLen);
 	DWORD			(*GetClass)(char *pName);
-
+	BYTE			m_Data0[152]; // 196
+	DWORD			(*GetNextClient)(DWORD hPrev);
+	DWORD			(*GetNextClientRef)(DWORD hRef);
+	DWORD			(*GetClientRefInfoFlags)(DWORD hClient);
+	BOOL			(*GetClientRefName)(DWORD hClient, char *pName, int maxLen);
+	DWORD			(*GetClientRefObject)(DWORD hClient);
+	DWORD			(*GetClientID)(DWORD hClient);
+	BOOL			(*GetClientName)(DWORD hClient, char *pName, int maxLen);
+	void			(*SetClientInfoFlags)(DWORD hClient, DWORD dwClientFlags);
+	DWORD			(*GetClientInfoFlags)(DWORD hClient);
+	void			(*SetClientUserData)(DWORD hClient, void *pData);
+	void*			(*GetClientUserData)(DWORD hClient);	
+	void			(*KickClient)(DWORD hClient);
 };
 
 extern ILTServer* g_pLTServer;
@@ -681,6 +725,7 @@ void EngineHack_WriteData(HANDLE hProcess, LPVOID lpAddr, BYTE* pNew, BYTE* pOld
 void EngineHack_WriteFunction(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew, DWORD& dwOld);
 void EngineHack_WriteCall(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew, BOOL bStructCall);
 void EngineHack_AllowWrite(HANDLE hProcess, LPVOID lpAddr, DWORD dwSize);
+void EngineHack_WriteJump(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew);
 
 
 BOOL GetSectionString(char* szSection, char* szKey, char* szValue);

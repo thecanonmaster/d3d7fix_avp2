@@ -93,6 +93,7 @@ void (__fastcall *IClientShell_Update)(void* pShell);
 
 void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
 void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
+void* (__fastcall *IServerShell_OnClientEnterWorld)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD clientDataLen);
 DWORD (__fastcall *IServerShell_ServerAppMessageFn)(void* pShell, void* notUsed, char *pMsg, int nLen);
 void (__fastcall *IServerShell_PostStartWorld)(void* pShell);
 
@@ -394,6 +395,22 @@ void EngineHack_AllowWrite(HANDLE hProcess, LPVOID lpAddr, DWORD dwSize)
 {
 	DWORD dwOldProtect;	
 	VirtualProtectEx(hProcess, lpAddr, dwSize, PAGE_EXECUTE_READWRITE, &dwOldProtect);	
+}
+
+void EngineHack_WriteJump(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew)
+{
+	DWORD dwOldProtect, dwTemp;
+	BYTE* pContent = (BYTE*)lpAddr;
+	DWORD* pCodeContent = (DWORD*)(pContent + 1);
+	DWORD dwCallCode = dwNew - (DWORD)lpAddr - 5;
+	
+	
+	VirtualProtectEx(hProcess, lpAddr, 5, PAGE_EXECUTE_READWRITE, &dwOldProtect);
+	
+	pContent[0] = 0xE9; 
+	pCodeContent[0] = dwCallCode;
+	
+	VirtualProtectEx(hProcess, lpAddr, 5, dwOldProtect, &dwTemp);
 }
 
 void CreateFont15Surface()

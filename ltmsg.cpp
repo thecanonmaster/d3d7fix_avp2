@@ -23,7 +23,7 @@ void GetD3D7FixVersion(char* szBuffer, BOOL bFullInfo)
 	if (bFullInfo)
 		sprintf(szBuffer, APP_NAME, APP_VERSION);
 	else
-		sprintf(szBuffer, "%.2f", APP_VERSION);
+		sprintf(szBuffer, "%g", APP_VERSION);
 }
 
 #ifndef PRIMAL_HUNT_BUILD
@@ -864,17 +864,15 @@ void SendMessageFromServerApp(char* szText)
 	IServerShell_ServerAppMessageFn(g_pServerMgr->m_pServerMgr->m_pServerShell, &dwNotUsed, szBuffer, 256);
 }
 
-//BOOL g_bDSIntroDrawn = FALSE;
+BOOL g_bVerifyClientBypassed = FALSE;
 float g_fLastMOTDTime = 0.0f;
+
+typedef DWORD (__stdcall *ILTServer_GetClientData_type)(DWORD hClient, void *&pData, DWORD &nLength);
+DWORD (__stdcall *ILTServer_GetClientData)(DWORD hClient, void *&pData, DWORD &nLength);
+
 void __fastcall MyIServerShell_Update(void* pShell, float timeElapsed)
 {
 	IServerShell_Update(pShell, timeElapsed);
-
-	/*if (!g_bDSIntroDrawn && ILTCSBase_GetTime(g_pLTServer) > DS_INTRO_DELAY)
-	{
-		g_bDSIntroDrawn = TRUE;
-		ILTCSBase_CPrint(g_pLTServer, APP_NAME, APP_VERSION);
-	}*/
 
 	float fMOTDTimer = GetCurrProfileFloat(EXT_MOTD_TIMER);
 	if (fMOTDTimer)
@@ -888,11 +886,51 @@ void __fastcall MyIServerShell_Update(void* pShell, float timeElapsed)
 			ILTCSBase_CPrint(g_pLTServer, "[EXT] MOTD: %s", szMOTD);
 			SendMessageFromServerApp(szMOTD);
 		}
-	}	
-}
+	}
+	
+	if (g_bVerifyClientBypassed)
+	{
+		char szBuffer[1024];
+		
+		g_bVerifyClientBypassed = FALSE;
 
-typedef DWORD (__stdcall *ILTServer_GetClientData_type)(DWORD hClient, void *&pData, DWORD &nLength);
-DWORD (__stdcall *ILTServer_GetClientData)(DWORD hClient, void *&pData, DWORD &nLength);
+		DWORD hCurrClient = g_pLTServer->GetNextClient(NULL);
+		while (hCurrClient) 
+		{
+			void* pClientData;
+			DWORD dwDataLen;
+			ILTServer_GetClientData(hCurrClient, pClientData, dwDataLen);
+
+			if (g_dwClientDataLen && g_dwClientDataLen != dwDataLen)
+			{
+				sprintf(szBuffer, "[EXT] BanMgr: Client has invalid client data size (%d != %d) [IServerShell_Update]", dwDataLen, g_dwClientDataLen);
+				logf(szBuffer + 6);
+				ILTCSBase_CPrint(g_pLTServer, szBuffer);
+
+				g_pLTServer->KickClient(hCurrClient);
+				hCurrClient = g_pLTServer->GetNextClient(NULL);
+				continue;
+			}
+
+			char* szName = NULL;
+			char szIP[64];
+			char* szID = NULL;
+			
+			if (BanList_IsBanned(hCurrClient, pClientData, &szName, szIP, &szID))
+			{		
+				sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s) is banned! [IServerShell_Update]", szName, szIP, szID);
+				logf(szBuffer + 6);
+				ILTCSBase_CPrint(g_pLTServer, szBuffer);
+
+				g_pLTServer->KickClient(hCurrClient);
+				hCurrClient = g_pLTServer->GetNextClient(NULL);
+				continue;
+			}
+
+			hCurrClient = g_pLTServer->GetNextClient(hCurrClient);
+		}
+	}
+}
 
 void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode)
 {
@@ -907,7 +945,7 @@ void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD h
 
 		if (g_dwClientDataLen != dwDataLen)
 		{
-			sprintf(szBuffer, "[EXT] BanMgr: Client has invalid client data size (%d != %d)", dwDataLen, g_dwClientDataLen);
+			sprintf(szBuffer, "[EXT] BanMgr: Client has invalid client data size (%d != %d) [VerifyClient]", dwDataLen, g_dwClientDataLen);
 			logf(szBuffer + 6);
 			ILTCSBase_CPrint(g_pLTServer, szBuffer);
 			SendMessageFromServerApp(BAN_MGR_CLIENT_REJECTED);
@@ -928,7 +966,7 @@ void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD h
 		
 		if (BanList_IsBanned(hClient, pClientData, &szName, szIP, &szID))
 		{		
-			sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s) is banned!", szName, szIP, szID);
+			sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s) is banned! [VerifyClient]", szName, szIP, szID);
 			nVerifyCode = LT_DISCON_MISCCRC;
 		}
 		else
@@ -939,6 +977,23 @@ void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD h
 		logf(szBuffer + 6);
 		ILTCSBase_CPrint(g_pLTServer, szBuffer);
 	}
+}
+
+void* __fastcall MyIServerShell_OnClientEnterWorld(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD clientDataLen)
+{
+	void* pResult = IServerShell_OnClientEnterWorld(pShell, notUsed, hClient, pClientData, clientDataLen);
+
+	if (GetCurrProfileBool(EXT_BAN_MANAGER) && hClient && pClientData)
+	{
+		char* szName = NULL;
+		char szIP[64];
+		char* szID = NULL;
+
+		if ((g_dwClientDataLen && g_dwClientDataLen != clientDataLen) || BanList_IsBanned(hClient, pClientData, &szName, szIP, &szID))
+			g_bVerifyClientBypassed = TRUE;
+	}
+	
+	return pResult;
 }
 
 void __fastcall MyIServerShell_PostStartWorld(void* pShell)
@@ -971,7 +1026,7 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	ILTCSBase_GetTime = (ILTCSBase_GetTime_type)pOrigTable[V_CSBASE_GET_TIME]; // 53
 	ILTCSBase_GetFrameTime = (ILTCSBase_GetFrameTime_type)pOrigTable[V_CSBASE_GET_FRAME_TIME]; // 54
 
-	ILTServer_GetClientData = (ILTServer_GetClientData_type)pOrigTable[124]; // 124
+	ILTServer_GetClientData = (ILTServer_GetClientData_type)pOrigTable[V_SERVER_GET_CLIENT_DATA]; // 124
 
 	ReadConfigDS(".\\ltmsg.ini");
 	
@@ -983,6 +1038,8 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_UPDATE), (DWORD)MyIServerShell_Update, dwRead); // 15
 	IServerShell_VerifyClient = (IServerShell_VerifyClient_type)pOrigTable[V_SSHELL_VERIFY_CLIENT]; // 4
 	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_VERIFY_CLIENT), (DWORD)MyIServerShell_VerifyClient, dwRead); // 4
+	IServerShell_OnClientEnterWorld = (IServerShell_OnClientEnterWorld_type)pOrigTable[V_SSHELL_ON_CLIENT_ENTER_WORLD]; // 5
+	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_ON_CLIENT_ENTER_WORLD), (DWORD)MyIServerShell_OnClientEnterWorld, dwRead); // 5	
 	IServerShell_PostStartWorld = (IServerShell_PostStartWorld_type)pOrigTable[V_SSHELL_POST_START_WORLD]; // 8
 	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_POST_START_WORLD), (DWORD)MyIServerShell_PostStartWorld, dwRead); // 8
 
@@ -1200,7 +1257,7 @@ void ApplyTWMDetailTex_Fix()
 	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_SUB_3F0A2A7_CALL), (DWORD)My_sub_3F0A2A7, FALSE); // 0x9C5A
 }
 
-float g_fServerFrameTimeClamp = 0.0f;
+float g_fServerFrameTimeClamp = 0.001f;
 typedef void (*dsi_ClientSleep_type)(DWORD dwMilliseconds);
 void (__cdecl *dsi_ClientSleep)(DWORD dwMilliseconds);
 typedef void (__fastcall *UpdateSounds_type)(CServerMgr* pServerMgr, float fDeltaTime);
@@ -1332,23 +1389,69 @@ void ApplyDynamicLightSurfaces_Fix()
 	dwSurfaceCounts[4] = DLIGHT_SURFACES_COUNT_OVERRIDE;
 }
 
-typedef DWORD (*r_FindFreeSlot_type)(void *pContext, DWORD dwWidth, DWORD dwHeight, DWORD *nX, DWORD *nY, void **param_6);
-DWORD (*r_FindFreeSlot)(void *pContext, DWORD dwWidth, DWORD dwHeight, DWORD *nX, DWORD *nY, void **param_6);
+float g_fUVMod1 = 0.03125f;
+float g_fUVMod2 = 0.015625f;
+BYTE* g_pbNextLMPageSize = NULL;
 
-DWORD My_r_FindFreeSlot(void *pContext, DWORD dwWidth, DWORD dwHeight, DWORD *nX, DWORD *nY, void **param_6)
+typedef DWORD (*r_FindFreeSlot_type)(RenderContext *pContext, DWORD dwWidth, DWORD dwHeight, DWORD *nX, DWORD *nY, LMPage **param_6);
+DWORD (*r_FindFreeSlot)(RenderContext *pContext, DWORD dwWidth, DWORD dwHeight, DWORD *nX, DWORD *nY, LMPage **param_6);
+
+DWORD My_r_FindFreeSlot(RenderContext *pContext, DWORD dwWidth, DWORD dwHeight, DWORD *nX, DWORD *nY, LMPage **pNewLMPage)
 {
-	return r_FindFreeSlot(pContext, FIND_FREE_SLOT_SIZE_OVERRIDE, FIND_FREE_SLOT_SIZE_OVERRIDE, nX, nY, param_6);
+	DWORD dwSize = (dwWidth < dwHeight) ? dwHeight : dwWidth;
+
+	*g_pbNextLMPageSize = dwSize;
+	g_fUVMod1 = 1.0f / dwSize;
+	g_fUVMod2 = 1.0f / (dwSize<<1);
+	
+	return r_FindFreeSlot(pContext, FIND_FREE_SLOT_SIZE_OVERRIDE, FIND_FREE_SLOT_SIZE_OVERRIDE, nX, nY, pNewLMPage);
 }
+
+/*typedef DWORD (*r_AddToLMPage_type)(void* pContext, WorldPoly* pPoly);
+DWORD (*r_AddToLMPage)(void* pContext, WorldPoly* pPoly);
+DWORD My_r_AddToLMPage(void* pContext, WorldPoly* pPoly)
+{
+	return r_AddToLMPage(pContext, pPoly);;
+}*/
 
 void ApplyStaticLightSurfaces_Fix()
 {
 	logf("Applying static light surfaces fix");
 	
+	BYTE anOld[32];
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
+	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
 	
 	r_FindFreeSlot = (r_FindFreeSlot_type)(dwDllAddress + ADDR_D3D_FIND_FREE_SLOT); // 0x34000
 	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_FIND_FREE_SLOT_CALL), (DWORD)My_r_FindFreeSlot, FALSE); // 0x342FC
+
+	// 32x32 LMPage
+	/*BYTE anPush20[2] = { 0x6A, 0x20 };
+	BYTE anOld[4];
+	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + 0x341B2), anPush20, anOld, 2);*/
+	EngineHack_AllowWrite(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_NEW_LM_PAGE_SIZE), 1); // 0x341B3
+	g_pbNextLMPageSize = (BYTE*)(dwDllAddress + ADDR_D3D_NEW_LM_PAGE_SIZE); // 0x341B3
+	*g_pbNextLMPageSize = 32; 
+
+	// 32x32 LMPage size comparison (not needed?)
+	/*BYTE anCmp20_1[3] = { 0x83, 0xFA, 0x20 };
+	BYTE anCmp20_2[3] = { 0x83, 0xFF, 0x20 };
+	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + 0x34350), anCmp20_1, anOld, 3);
+	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + 0x34359), anCmp20_2, anOld, 3);*/
+
+	/*r_AddToLMPage = (r_AddToLMPage_type)(dwDllAddress + 0x3429B);
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x344E1), (DWORD)My_r_AddToLMPage, FALSE);
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x346A3), (DWORD)My_r_AddToLMPage, FALSE);*/
+
+	DWORD dwNew = (DWORD)(&g_fUVMod1);	
+	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_NEW_LM_PAGE_UV_MOD1), (BYTE*)(&dwNew), anOld, 4); // 0x343F3
+	dwNew = (DWORD)(&g_fUVMod2);
+	EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_NEW_LM_PAGE_UV_MOD2), (BYTE*)(&dwNew), anOld, 4); // 0x3445D
+
+	// PORTAL TEST
+	//WORD wIndex = 0;
+	//EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + 0x35A1A), (BYTE*)(&wIndex), anOld, 2);
 }
 
 DWORD g_dwOriginalD3D = 0;
