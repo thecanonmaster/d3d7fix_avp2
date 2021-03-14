@@ -27,7 +27,7 @@ LONG g_lRMILastY = 0;
 ProfileOption g_ProfileOptions[PO_MAX] = 
 {
 	ProfileOption(POT_BYTE, "DgVoodooMode"),
-	ProfileOption(POT_BYTE, "DefaultProfile"),
+	ProfileOption(POT_STRING, "DefaultProfile"),
 	ProfileOption(POT_FLOAT, "IntroductionTime"),
 	ProfileOption(POT_STRING, "Misc_Description"),
 	ProfileOption(POT_BYTE, "Misc_CleanMode"),

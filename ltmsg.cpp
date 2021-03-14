@@ -703,7 +703,7 @@ float g_fLastExtraFOVXOffset = 0.0f;
 #define VIEW_MODE_BASE_ASPECT 1.333333f
 
 void __fastcall MyIClientShell_Update(void* pShell)
-{
+{	
 	IClientShell_Update(pShell);
 
 	if (GetCurrProfileBool(PO_VIEW_MODEL_FOV))
@@ -822,10 +822,12 @@ int My_d3d_RenderScene(SceneDesc* pDesc)
 		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_MENU);
 	else if (g_bVisionModeEnabled)
 		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_VM);
-	else
-		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY);
+	/*else
+		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY);*/
 	
-	return d3d_RenderScene(pDesc);
+	int nRet = d3d_RenderScene(pDesc);
+	g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY);
+	return nRet;
 }
 
 /*DWORD (*OldScaleSurfaceToSurface)(DWORD hDest, DWORD hSrc, LTRect *pDestRect, LTRect *pSrcRect);
@@ -1084,37 +1086,39 @@ void HookEngineStuff1()
 	DIEnumDevicesCallback = (DIEnumDevicesCallback_type)dwRead;
 }
 
-typedef DWORD (__fastcall *ILTLightAnim_SetLightAnimInfo_type)(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info);
-DWORD (__fastcall *ILTLightAnim_SetLightAnimInfo)(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info);
-DWORD __fastcall MyILTLightAnim_SetLightAnimInfo(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info)
-{
-	g_bVisionModeEnabled = FALSE;
-
-	if (!info.m_iFrames[0] && !info.m_iFrames[1])
-	{
-		float fMod = (1.0f - ((float)GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY) / 255.0f)) * 1.5f;
-		if (fMod < 0.1f)
-			fMod = 0.1f;
-		else if (fMod > 1.0f) 
-			fMod = 1.0f;
-
-		info.m_fBlendPercent *= fMod;
-		g_bVisionModeEnabled = TRUE;
-	}
-	else
-	{
-		info.m_fBlendPercent = 1.0f;
-	}
-
-	return ILTLightAnim_SetLightAnimInfo(pInterface, pEDX, hLightAnim, info);
-}
-
 /*typedef DWORD (__fastcall *ILTLightAnim_FindLightAnim_type)(ILTLightAnim* pInterface, void* pEDX, const char *pName, DWORD &hLightAnim);
 DWORD (__fastcall *ILTLightAnim_FindLightAnim)(ILTLightAnim* pInterface, void* pEDX, const char *pName, DWORD &hLightAnim);
 DWORD __fastcall MyILTLightAnim_FindLightAnim(ILTLightAnim* pInterface, void* pEDX, const char *pName, DWORD &hLightAnim)
 {
-	return ILTLightAnim_FindLightAnim(pInterface, pEDX, pName, hLightAnim);
+	return ILTLightAnim_FindLightAnim(pInterface, pEDX, pName, hLightAnim);;
 }*/
+
+typedef DWORD (__fastcall *ILTLightAnim_SetLightAnimInfo_type)(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info);
+DWORD (__fastcall *ILTLightAnim_SetLightAnimInfo)(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info);
+DWORD __fastcall MyILTLightAnim_SetLightAnimInfo(ILTLightAnim* pInterface, void* pEDX, DWORD hLightAnim, LAInfo &info)
+{	
+	if (hLightAnim != 0xFFFFFFFF && info.m_vLightPos.x == 0.0f && info.m_vLightPos.y == 0.0f && info.m_vLightPos.z == 0.0f)
+	{
+		g_bVisionModeEnabled = FALSE;
+		if (!info.m_iFrames[0] && !info.m_iFrames[1])
+		{
+			float fMod = (1.0f - ((float)GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY) / 255.0f)) * 1.5f;
+			if (fMod < 0.1f)
+				fMod = 0.1f;
+			else if (fMod > 1.0f) 
+				fMod = 1.0f;
+			
+			info.m_fBlendPercent *= fMod;
+			g_bVisionModeEnabled = TRUE;
+		}
+		else
+		{
+			info.m_fBlendPercent = 1.0f;
+		}
+	}
+
+	return ILTLightAnim_SetLightAnimInfo(pInterface, pEDX, hLightAnim, info);
+}
 
 void HookEngineStuff2()
 {
@@ -1189,8 +1193,8 @@ void HookEngineStuff2()
 			EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + ADDR_D3D_RENDER_STRUCT) + ADDR_D3D_BLIT_TO_SCREEN_TABLE), (DWORD)My_d3d_BlitToScreen, dwRead); // 0x58470 0xF4
 
 			pOrigTable = (DWORD*)*(DWORD*)g_pLTClient->m_pLightAnimLT;	
-			ILTLightAnim_SetLightAnimInfo = (ILTLightAnim_SetLightAnimInfo_type)pOrigTable[3];
-			EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 3), (DWORD)MyILTLightAnim_SetLightAnimInfo, dwRead);
+			ILTLightAnim_SetLightAnimInfo = (ILTLightAnim_SetLightAnimInfo_type)pOrigTable[V_LA_SET_LIGHT_ANIM_INFO]; // 3
+			EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_LA_SET_LIGHT_ANIM_INFO), (DWORD)MyILTLightAnim_SetLightAnimInfo, dwRead); // 3
 
 			//ILTLightAnim_FindLightAnim = (ILTLightAnim_FindLightAnim_type)pOrigTable[0];
 			//EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 0), (DWORD)MyILTLightAnim_FindLightAnim, dwRead);
