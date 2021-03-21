@@ -822,12 +822,10 @@ int My_d3d_RenderScene(SceneDesc* pDesc)
 		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_MENU);
 	else if (g_bVisionModeEnabled)
 		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_VM);
-	/*else
-		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY);*/
+	else
+		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY);
 	
-	int nRet = d3d_RenderScene(pDesc);
-	g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY);
-	return nRet;
+	return d3d_RenderScene(pDesc);
 }
 
 /*DWORD (*OldScaleSurfaceToSurface)(DWORD hDest, DWORD hSrc, LTRect *pDestRect, LTRect *pSrcRect);
@@ -1102,19 +1100,19 @@ DWORD __fastcall MyILTLightAnim_SetLightAnimInfo(ILTLightAnim* pInterface, void*
 		g_bVisionModeEnabled = FALSE;
 		if (!info.m_iFrames[0] && !info.m_iFrames[1])
 		{
-			float fMod = (1.0f - ((float)GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY) / 255.0f)) * 1.5f;
+			/*float fMod = (1.0f - ((float)GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY) / 255.0f)) * 1.5f;
 			if (fMod < 0.1f)
 				fMod = 0.1f;
 			else if (fMod > 1.0f) 
 				fMod = 1.0f;
 			
-			info.m_fBlendPercent *= fMod;
+			info.m_fBlendPercent *= fMod;*/
 			g_bVisionModeEnabled = TRUE;
 		}
-		else
+		/*else
 		{
 			info.m_fBlendPercent = 1.0f;
-		}
+		}*/
 	}
 
 	return ILTLightAnim_SetLightAnimInfo(pInterface, pEDX, hLightAnim, info);
