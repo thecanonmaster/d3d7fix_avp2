@@ -144,6 +144,7 @@ void ReadConfig(char* szFilename, char* szProfile)
 		SetCurrProfileBool(PO_LIGHT_LOAD, FALSE);
 		SetCurrProfileBool(PO_TWM_DETAIL_TEX, FALSE);
 		SetCurrProfileBool(PO_FULLSCREEN_OPTIMIZE, FALSE);
+		SetCurrProfileBool(PO_STATIC_LIGHT_SURFACES, FALSE);
 	}
 
 	char* szProfileEx = NULL;
@@ -1238,13 +1239,15 @@ void ApplyLightLoad_Fix()
 }
 
 BOOL* g_pDetailTextureCapable;
+ConVarFloat* g_pDetailTextures;
+
 typedef void (*sub_3F0A2A7_type)();
 void (*sub_3F0A2A7)();
 void My_sub_3F0A2A7()
 {
-	*g_pDetailTextureCapable = FALSE;
-	sub_3F0A2A7();
-	*g_pDetailTextureCapable = TRUE;
+	g_pDetailTextures->m_dwVal = 0;
+	sub_3F0A2A7();	
+	g_pDetailTextures->m_dwVal = 1;
 }
 
 void ApplyTWMDetailTex_Fix()
@@ -1257,6 +1260,8 @@ void ApplyTWMDetailTex_Fix()
 	g_pDetailTextureCapable = (BOOL*)(dwDllAddress + ADDR_D3D_DETAIL_TEX_CAPABLE); // 0x5DE2C
 	sub_3F0A2A7 = (sub_3F0A2A7_type)(dwDllAddress + ADDR_D3D_SUB_3F0A2A7); // 0xA2A7
 	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_SUB_3F0A2A7_CALL), (DWORD)My_sub_3F0A2A7, FALSE); // 0x9C5A
+
+	g_pDetailTextures = (ConVarFloat*)(dwDllAddress + ADDR_D3D_DETAIL_TEXTURES); // 0x51448
 }
 
 float g_fServerFrameTimeClamp = 0.001f;

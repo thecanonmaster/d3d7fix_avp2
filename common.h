@@ -126,7 +126,7 @@ extern int g_nLastFrameRate;
 #endif
 
 #define APP_NAME_SHORT	"D3D7FIX v%.2f"
-#define APP_VERSION		0.31f
+#define APP_VERSION		0.311f
 #define CVAR_PROFILE	"D3D7FixProfile"
 #define CVAR_PROFILE_EX "D3D7FixProfileEx"
 
@@ -136,7 +136,7 @@ extern int g_nLastFrameRate;
 #define LTMSG_LOG		"ltmsg.log"
 
 #define OBJECT_LTO_LOWER	"object.lto"
-#define OBJECT_LTO_UPPER	"object.lto"
+#define OBJECT_LTO_UPPER	"OBJECT.LTO"
 
 #define PROFILE_GLOBAL				"Global"
 #define PROFILE_CLEAN				"Clean"
@@ -211,6 +211,20 @@ union GenericColor
     DWORD  dwVal;
     WORD   wVal;
     BYTE   bVal;
+};
+
+class ConVarFloat
+{
+public:
+	
+	DWORD			m_dwVal;
+	float			m_DefaultVal;
+	float			m_fVal;		
+	DWORD			m_Unknown1;
+	DWORD			m_Unknown2;
+	const char*		m_pName;
+	DWORD			m_hParam;
+	ConVarFloat*	m_pNext;
 };
 
 #define DRAWMODE_NORMAL     1   // Render normally.
