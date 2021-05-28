@@ -24,4 +24,5 @@
 #include "common.h"
 #include "Console.h"
 #include "BanMgr.h"
+#include "crc32.h"
 

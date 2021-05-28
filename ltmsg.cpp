@@ -1066,6 +1066,11 @@ void HookDSStuff1()
 
 #endif
 
+#ifdef PRIMAL_HUNT_BUILD
+BYTE g_anLoadRenderLibCode1[6];
+BYTE g_anLoadRenderLibCode2[6];
+#endif
+
 void HookEngineStuff1()
 {
 #ifdef PRIMAL_HUNT_BUILD
@@ -1083,6 +1088,11 @@ void HookEngineStuff1()
 	DWORD dwEnum = (DWORD)MyDIEnumDevicesCallback;
 	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_ENUM_DEVICES_CALLBACK), (BYTE*)&dwEnum, (BYTE*)&dwRead, 4); // 0x03EEC6
 	DIEnumDevicesCallback = (DIEnumDevicesCallback_type)dwRead;
+
+#ifdef PRIMAL_HUNT_BUILD
+	memcpy(g_anLoadRenderLibCode1, (LPVOID)(dwExeAddress + ADDR_LOAD_RENDER_LIB_CODE1), 6); // 0x38219
+	memcpy(g_anLoadRenderLibCode2, (LPVOID)(dwExeAddress + ADDR_LOAD_RENDER_LIB_CODE2), 6); // 0x75371
+#endif
 }
 
 /*typedef DWORD (__fastcall *ILTLightAnim_FindLightAnim_type)(ILTLightAnim* pInterface, void* pEDX, const char *pName, DWORD &hLightAnim);
@@ -1461,6 +1471,59 @@ void ApplyStaticLightSurfaces_Fix()
 	//EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + 0x35A1A), (BYTE*)(&wIndex), anOld, 2);
 }
 
+DWORD __stdcall SharedCommonLT_GetCRC_Cli(ILTStream* pStream, DWORD& dwCRC32)
+{
+	if (pStream)
+	{
+		dwCRC32 = CalcStreamCRC(pStream);
+		return 0;
+	}
+	else
+	{
+		dwCRC32 = 0;
+		return 1;
+	}
+}
+
+DWORD __stdcall SharedCommonLT_GetCRC_Test1(ILTStream* pStream, DWORD& dwCRC32) // ILTStream
+{
+	if (pStream)
+	{
+		dwCRC32 = CalcStreamCRC(pStream);
+		return 0;
+	}
+	else
+	{
+		dwCRC32 = 0;
+		return 1;
+	}
+}
+
+DWORD __stdcall SharedCommonLT_GetCRC_Srv(ILTStream* pStream, DWORD& dwCRC32)
+{
+	if (pStream)
+	{
+		dwCRC32 = CalcStreamCRC(pStream);
+		return 0;
+	}
+	else
+	{
+		dwCRC32 = 0;
+		return 1;
+	}
+}
+
+void ApplyFastCRCCheck_Fix()
+{
+	DWORD dwOld;
+	HANDLE hProcess = GetCurrentProcess();
+	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
+
+	EngineHack_WriteFunction(hProcess, (LPVOID)(dwExeAddress + ADDR_GET_CRC_CLI_TABLE), (DWORD)SharedCommonLT_GetCRC_Cli, dwOld); // 0x0C6884
+	EngineHack_WriteFunction(hProcess, (LPVOID)(dwExeAddress + ADDR_GET_CRC_TEST1_TABLE), (DWORD)SharedCommonLT_GetCRC_Test1, dwOld); // 0x0C7514
+	EngineHack_WriteFunction(hProcess, (LPVOID)(dwExeAddress + ADDR_GET_CRC_SRV_TABLE), (DWORD)SharedCommonLT_GetCRC_Srv, dwOld); // 0x0C83A4
+}
+
 DWORD g_dwOriginalD3D = 0;
 HRESULT WINAPI FakeDirectDrawCreateEx(GUID FAR * lpGUID, LPVOID *lplpDD, REFIID iid, IUnknown FAR *pUnkOuter)
 {
@@ -1505,6 +1568,9 @@ HRESULT WINAPI FakeDirectDrawCreateEx(GUID FAR * lpGUID, LPVOID *lplpDD, REFIID 
 	if (GetCurrProfileBool(PO_STATIC_LIGHT_SURFACES))
 		ApplyStaticLightSurfaces_Fix();
 
+	if (GetCurrProfileBool(PO_FAST_CRC_CHECK))
+		ApplyFastCRCCheck_Fix();
+
 	DirectDrawCreateEx_Type DirectDrawCreateEx_fn = (DirectDrawCreateEx_Type)g_dwOriginalD3D;
 
 	LPVOID FAR dummy;
@@ -1539,6 +1605,17 @@ HMODULE WINAPI MyLoadLibraryA(LPCSTR lpFileName)
 		BYTE anXorEaxNop[3] = { 0x31, 0xc0, 0x90 };
 		EngineHack_WriteData(hProcess, (LPVOID)(dwDllAddress + GetCurrProfileDWord(PO_UPDATE_OBJECT_LTO)), anXorEaxNop, anOldData, 3); // PH: 0xD56D5
 	}
+#ifdef PRIMAL_HUNT_BUILD
+	else if (strstr(lpFileName, CRES_DLL_LOWER) || strstr(lpFileName, CRES_DLL_UPPER))
+	{
+		BYTE anOld[6];
+		HANDLE hProcess = GetCurrentProcess();
+		DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
+
+		EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_LOAD_RENDER_LIB_CODE1), g_anLoadRenderLibCode1, anOld, 6);
+		EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_LOAD_RENDER_LIB_CODE2), g_anLoadRenderLibCode2, anOld, 6);
+	}
+#endif
 
 	return hModule;
 }

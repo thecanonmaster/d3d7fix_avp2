@@ -120,6 +120,10 @@ SOURCE=.\Console.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\crc32.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\FakeID3D7.cpp
 # End Source File
 # Begin Source File
@@ -169,6 +173,10 @@ SOURCE=.\common.h
 # Begin Source File
 
 SOURCE=.\Console.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\crc32.h
 # End Source File
 # Begin Source File
 

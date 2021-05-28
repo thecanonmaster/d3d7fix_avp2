@@ -48,6 +48,7 @@ enum eProfileOption
 	EXT_BAN_MANAGER,
 	EXT_MOTD_TIMER,
 	EXT_MOTD_STRING,
+	PO_FAST_CRC_CHECK,
 	PO_MAX,
 };
 
@@ -125,8 +126,8 @@ extern int g_nLastFrameRate;
 #endif
 #endif
 
-#define APP_NAME_SHORT	"D3D7FIX v%.2f"
-#define APP_VERSION		0.311f
+#define APP_NAME_SHORT	"D3D7FIX v%g"
+#define APP_VERSION		0.32f
 #define CVAR_PROFILE	"D3D7FixProfile"
 #define CVAR_PROFILE_EX "D3D7FixProfileEx"
 
@@ -137,6 +138,8 @@ extern int g_nLastFrameRate;
 
 #define OBJECT_LTO_LOWER	"object.lto"
 #define OBJECT_LTO_UPPER	"OBJECT.LTO"
+#define CRES_DLL_LOWER		"cres.dll"
+#define CRES_DLL_UPPER		"CRES.DLL"
 
 #define PROFILE_GLOBAL				"Global"
 #define PROFILE_CLEAN				"Clean"
@@ -182,6 +185,27 @@ extern int g_nLastFrameRate;
 #define SERVERSHELL_MESSAGE		3
 
 #define BASE_LIGHTANIM_NAME		"LightAnim_BASE"
+
+class ILTStream
+{
+protected:
+
+	virtual				~ILTStream() {}
+
+public:
+
+	virtual void	Release()=0;
+	virtual DWORD	Read(void *pData, DWORD size)=0;
+	virtual DWORD	ReadString(char *pStr, DWORD maxBytes)=0;
+
+	virtual DWORD	ErrorStatus()=0;
+
+	virtual DWORD	SeekTo(DWORD offset)=0;
+	virtual DWORD	GetPos(DWORD *offset)=0;
+	virtual DWORD	GetLen(DWORD *len)=0;
+
+	// More stuff there
+};
 
 struct LTRect
 {

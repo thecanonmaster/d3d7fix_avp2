@@ -65,6 +65,7 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "Ext_BanManager"),
 	ProfileOption(POT_FLOAT, "Ext_MOTDTimer"),
 	ProfileOption(POT_STRING, "Ext_MOTDString"),
+	ProfileOption(POT_BYTE, "Fix_FastCRCCheck"),
 };
 
 FontList g_FontList;
