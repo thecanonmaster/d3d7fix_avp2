@@ -56,6 +56,7 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "Fix_FullscreenOptimize"),
 	ProfileOption(POT_BYTE, "Fix_NoVSync"),
 	ProfileOption(POT_DWORD, "Fix_UpdateObjectLTO"),
+	ProfileOption(POT_BYTE, "Fix_FastCRCCheck"),
 	ProfileOption(POT_FLOAT, "RMI_ScaleGlobal"),
 	ProfileOption(POT_FLOAT, "RMI_ScaleY"),
 	ProfileOption(POT_BYTE, "PP_Enabled"),
@@ -65,7 +66,7 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "Ext_BanManager"),
 	ProfileOption(POT_FLOAT, "Ext_MOTDTimer"),
 	ProfileOption(POT_STRING, "Ext_MOTDString"),
-	ProfileOption(POT_BYTE, "Fix_FastCRCCheck"),
+	ProfileOption(POT_STRING, "Ext_CacheList"),
 };
 
 FontList g_FontList;
@@ -716,6 +717,24 @@ void ParseCVarProfile(char* szData)
 	}
 
 	// if (n > 0xffffff) n |= 0xff000000;
+}
+
+char* ParseCacheString(char* szString, DWORD& dwType)
+{
+	char* szArrow = szString;
+	
+	while(*szArrow != '|')
+		szArrow++;
+	
+	int nTypeLen = szArrow - szString;
+	
+	if (!strncmp(szString, "FT_MODEL", nTypeLen)) dwType = FT_MODEL;
+	else if (!strncmp(szString, "FT_SPRITE", nTypeLen)) dwType = FT_SPRITE;
+	else if (!strncmp(szString, "FT_TEXTURE", nTypeLen)) dwType = FT_TEXTURE;
+	else if (!strncmp(szString, "FT_SOUND", nTypeLen)) dwType = FT_SOUND;
+	else dwType = FT_ERROR;
+
+	return szArrow + 1;
 }
 
 void LogCurrProfile()

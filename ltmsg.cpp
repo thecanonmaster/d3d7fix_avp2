@@ -10,6 +10,7 @@ void HookEngineStuff1();
 
 void HookDSStuff1();
 void ApplyTimeCalibrationDS_Fix();
+void ApplyExtraCacheListDS_Fix();
 
 #endif
 
@@ -867,6 +868,7 @@ void SendMessageFromServerApp(char* szText)
 
 BOOL g_bVerifyClientBypassed = FALSE;
 float g_fLastMOTDTime = 0.0f;
+BOOL g_bExtraCacheListApplied = FALSE;
 
 typedef DWORD (__stdcall *ILTServer_GetClientData_type)(DWORD hClient, void *&pData, DWORD &nLength);
 DWORD (__stdcall *ILTServer_GetClientData)(DWORD hClient, void *&pData, DWORD &nLength);
@@ -1000,6 +1002,7 @@ void* __fastcall MyIServerShell_OnClientEnterWorld(void* pShell, void* notUsed, 
 void __fastcall MyIServerShell_PostStartWorld(void* pShell)
 {
 	g_fLastMOTDTime = 0.0f;
+	g_bExtraCacheListApplied = FALSE;
 	IServerShell_PostStartWorld(pShell);
 }
 
@@ -1033,6 +1036,9 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	
 	if (GetCurrProfileBool(PO_TIME_CALIBRATION))
 		ApplyTimeCalibrationDS_Fix();
+
+	if (GetCurrProfileString(EXT_CACHE_LIST)[0])
+		ApplyExtraCacheListDS_Fix();
 
 	pOrigTable = (DWORD*)*(DWORD*)g_pServerMgr->m_pServerMgr->m_pServerShell;	
 	IServerShell_Update = (IServerShell_Update_type)pOrigTable[V_SSHELL_UPDATE]; // 15
@@ -1372,6 +1378,64 @@ void ApplyTimeCalibrationDS_Fix()
 	fServerFPS = GetCurrProfileFloat(PO_SERVER_FPS);
 }
 
+DWORD (*OldGetServerFlags)();
+DWORD MyGetServerFlags()
+{
+	DWORD dwRet = OldGetServerFlags();
+	if (!g_bExtraCacheListApplied && (dwRet & SS_CACHING))
+	{
+		g_bExtraCacheListApplied = TRUE;
+		
+		FILE* pFile = fopen(GetCurrProfileString(EXT_CACHE_LIST), "rb");
+		fseek(pFile, 0, SEEK_END);
+
+		int nSize = ftell(pFile);
+		rewind(pFile);
+
+		char* szBuffer = new char[nSize + 1];
+		fread(szBuffer, 1, nSize, pFile);
+		szBuffer[nSize] = '\r';
+
+		int i = 0;
+		int nStart = 0;
+		while (i < nSize)
+		{
+			if (szBuffer[i] == '\r')
+			{
+				szBuffer[i] = 0;
+				
+				DWORD dwType;
+				char* szFilename = ParseCacheString(szBuffer + nStart, dwType);
+				if (dwType != FT_ERROR)
+					g_pLTServer->CacheFile(dwType, szFilename);
+
+				i += 2;
+				nStart = i;
+			}
+			else
+			{
+				i++;
+			}
+		}
+		
+		delete[] szBuffer;
+		fclose(pFile);
+	}
+
+	return dwRet;	
+}
+
+void ApplyExtraCacheListDS_Fix()
+{
+	logf("Applying DS extra cache list fix");
+	
+	HANDLE hProcess = GetCurrentProcess();
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
+	
+	OldGetServerFlags = g_pLTServer->GetServerFlags;
+	g_pLTServer->GetServerFlags = MyGetServerFlags;
+}
+
 #endif
 
 DWORD (*OldFlipScreen)(DWORD flags);
@@ -1515,6 +1579,8 @@ DWORD __stdcall SharedCommonLT_GetCRC_Srv(ILTStream* pStream, DWORD& dwCRC32)
 
 void ApplyFastCRCCheck_Fix()
 {
+	logf("Applying fast CRC32 check fix");
+
 	DWORD dwOld;
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);

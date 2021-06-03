@@ -39,6 +39,7 @@ enum eProfileOption
 	PO_FULLSCREEN_OPTIMIZE,
 	PO_NOVSYNC,
 	PO_UPDATE_OBJECT_LTO,
+	PO_FAST_CRC_CHECK,
 	PO_RMI_SCALE_GLOBAL,
 	PO_RMI_SCALE_Y,
 	PO_POSTPROCESS_ENABLED,
@@ -48,7 +49,7 @@ enum eProfileOption
 	EXT_BAN_MANAGER,
 	EXT_MOTD_TIMER,
 	EXT_MOTD_STRING,
-	PO_FAST_CRC_CHECK,
+	EXT_CACHE_LIST,
 	PO_MAX,
 };
 
@@ -185,6 +186,16 @@ extern int g_nLastFrameRate;
 #define SERVERSHELL_MESSAGE		3
 
 #define BASE_LIGHTANIM_NAME		"LightAnim_BASE"
+
+#define SS_PAUSED		(1<<0)
+#define SS_DEMOPLAYBACK	(1<<1)
+#define SS_CACHING		(1<<2)
+
+#define FT_MODEL		0
+#define FT_SPRITE		1
+#define FT_TEXTURE		2
+#define FT_SOUND		3
+#define FT_ERROR		0xFF
 
 class ILTStream
 {
@@ -629,7 +640,17 @@ public:
 	DWORD			(*CreateWorldCRC)();
 	DWORD			(*GetGameInfo)(void **ppData, DWORD *pLen);
 	DWORD			(*GetClass)(char *pName);
-	BYTE			m_Data0[152]; // 196
+
+	DWORD			(*GetStaticObject)(DWORD hClass, DWORD *obj);
+	DWORD			(*GetObjectClass)(DWORD hObject);
+	BOOL			(*IsKindOf)(DWORD hClass, DWORD hTest);
+	void*			(*CreateObject)(DWORD hClass, void *pStruct);
+	void*			(*CreateObjectProps)(DWORD hClass, void *pStruct, char *pszProps);
+	DWORD			(*GetServerFlags)();
+	DWORD			(*SetServerFlags)(DWORD flags);
+	DWORD			(*CacheFile)(DWORD fileType, char *pFilename);
+
+	BYTE			m_Data0[120]; // 152 196
 	DWORD			(*GetNextClient)(DWORD hPrev);
 	DWORD			(*GetNextClientRef)(DWORD hRef);
 	DWORD			(*GetClientRefInfoFlags)(DWORD hClient);
@@ -786,6 +807,7 @@ float GetCurrProfileFloat(eProfileOption eOption);
 char* GetCurrProfileString(eProfileOption eOption);
 void ParseCVarProfile(char* szData);
 void LogCurrProfile();
+char* ParseCacheString(char* szString, DWORD& dwType);
 
 void SectionToCurrProfileBool(char* szSection, eProfileOption eOption, int nDefault);
 void SectionToCurrProfileDWord(char* szSection, eProfileOption eOption, DWORD dwDefault);
