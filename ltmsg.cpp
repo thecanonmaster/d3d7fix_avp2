@@ -128,6 +128,7 @@ void ReadConfig(char* szFilename, char* szProfile)
 	SectionToCurrProfileDWord(szSection, PO_UPDATE_OBJECT_LTO, 0);	
 	SectionToCurrProfileBool(szSection, PO_MISC_CC, FALSE);
 	SectionToCurrProfileBool(szSection, PO_RAW_MOUSE_INPUT, FALSE);
+	SectionToCurrProfileBool(szSection, PO_FAST_CRC_CHECK, FALSE);
 	SetCurrProfileFlag(PO_RAW_MOUSE_INPUT, GetCurrProfileBool(PO_RAW_MOUSE_INPUT));
 
 	SectionToCurrProfileFloat(szSection, PO_RMI_SCALE_GLOBAL, 0.001f);
