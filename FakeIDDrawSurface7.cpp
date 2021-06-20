@@ -165,6 +165,12 @@ HRESULT FakeIDDrawSurface7Prime::AddOverlayDirtyRect(LPRECT a)
 
 HRESULT FakeIDDrawSurface7Prime::Blt(LPRECT a,LPDIRECTDRAWSURFACE7 b, LPRECT c,DWORD d, LPDDBLTFX e)
 {
+	if (GetCurrProfileBool(PO_RADEON_5700) && m_pIDDrawSurface->IsLost())
+	{
+		g_ddMainDDraw->RestoreAllSurfaces();
+		ReoptimizeFont15Surface();
+	}
+	
 	if (GetCurrProfileBool(PO_POSTPROCESS_ENABLED))
 		PostProcess(g_d3dDevice, b);
 	

@@ -248,7 +248,7 @@ HRESULT  __stdcall FakeIDDraw7::CreateSurface(LPDDSURFACEDESC2 lpDDSurfaceDesc2,
 		}
 
 		return hResult;
-	}	
+	}
 	
 	HRESULT hResult = m_pIDDraw->CreateSurface(lpDDSurfaceDesc2, lplpDDSurface, pUnkOuter);
 

@@ -132,6 +132,8 @@ extern int g_nLastFrameRate;
 #define CVAR_PROFILE	"D3D7FixProfile"
 #define CVAR_PROFILE_EX "D3D7FixProfileEx"
 
+#define CMD_FLAG_NO_DI_HOOKS "+D3D7FixNoDIHooks 1"
+
 #define LITHTECH_EXE	"lithtech.exe"
 #define SERVER_DLL		"server.dll"
 #define D3D_REN			"d3d.ren"
@@ -778,6 +780,7 @@ extern CClientMgrBase* g_pClientMgr;
 extern CClassMgrBase* g_pClassMgr;
 
 void CreateFont15Surface();
+void ReoptimizeFont15Surface();
 void DrawFont15String(char* szString, int nX, int nY, int nSpacing, int nScale, DWORD dwColor, DWORD hDestSurfOverride = NULL);
 void CreateIntroductionSurface();
 BOOL RegisterRawMouseDevice();

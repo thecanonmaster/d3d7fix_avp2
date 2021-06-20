@@ -119,7 +119,7 @@ HRESULT FakeID3D7::CreateDevice(REFCLSID rclsid,LPDIRECTDRAWSURFACE7 lpDDS,LPDIR
 			g_wVertexBufferIndices[i] = (WORD)i;
 		}
 	}
-	
+
 	return hResult;
 }
 

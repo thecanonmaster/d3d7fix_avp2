@@ -435,6 +435,11 @@ void CreateFont15Surface()
 	g_pLTClient->OptimizeSurface(g_hFont15Surface, 0);
 }
 
+void ReoptimizeFont15Surface()
+{
+	g_pLTClient->OptimizeSurface(g_hFont15Surface, 0);
+}
+
 void DrawFont15String(char* szString, int nX, int nY, int nSpacing, int nScale, DWORD dwColor, DWORD hDestSurfOverride/* = NULL*/)
 {	
 	if (!g_hFont15Surface)

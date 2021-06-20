@@ -798,12 +798,13 @@ BOOL __stdcall MyDIEnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVOID pvRef)
 {
 	BYTE* anDevType = (BYTE*)&lpddi->dwDevType;
 	
-	if (anDevType[0] != DIDEVTYPE_MOUSE && anDevType[0] != DIDEVTYPE_KEYBOARD /*&& !(lpddi->dwDevType & DIDEVTYPE_HID)*/)
+	/*if (anDevType[0] != DIDEVTYPE_MOUSE && anDevType[0] != DIDEVTYPE_KEYBOARD)
 	{
-		logf("DirectInput non-mouse/keyboard device \"%s\"", lpddi->tszInstanceName);
+		logf("DirectInput non-mouse/non-keyboard device \"%s\"", lpddi->tszInstanceName);
 		return DIENUM_CONTINUE;
-	}
+	}*/
 	
+	logf("DirectInput mouse/keyboard device \"%s\" [%d]", lpddi->tszInstanceName, anDevType[0]);
 	return DIEnumDevicesCallback(lpddi, pvRef);
 }
 
@@ -1078,23 +1079,61 @@ BYTE g_anLoadRenderLibCode1[6];
 BYTE g_anLoadRenderLibCode2[6];
 #endif
 
+DWORD g_dwJumpBackDIEnumTwice = 0;
+DWORD g_pDirectInput = 0;
+__declspec(naked) void DIEnumDevicesTwice()
+{
+	__asm
+	{
+		mov eax, g_pDirectInput // 4E3B18h
+		mov eax, [eax]
+		push 1
+		push 0
+		push offset MyDIEnumDevicesCallback
+		mov ecx, [eax]
+		push 2
+		push eax
+		call dword ptr [ecx+10h]
+		
+		mov eax, g_pDirectInput // 4E3B18h
+		mov eax, [eax]
+		push 1
+		push 0
+		push offset MyDIEnumDevicesCallback
+		mov ecx, [eax]
+		push 3
+		push eax
+		call dword ptr [ecx+10h]
+
+		jmp g_dwJumpBackDIEnumTwice
+	}
+}
+
 void HookEngineStuff1()
 {
-#ifdef PRIMAL_HUNT_BUILD
-	logf("Hooking engine stuff #1 (Primal Hunt)");
-#else
-	logf("Hooking engine stuff #1 (AVP2)");
-#endif
+	logf(APP_NAME, APP_VERSION);
+	logf("Hooking engine stuff #1");
 	
 	DWORD dwRead;
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
+	char* szCommandLine = GetCommandLine();
 	
 	EngineHack_WriteFunction(hProcess, (LPVOID)(dwExeAddress + ADDR_LOAD_LIBRARY), (DWORD)MyLoadLibraryA, dwRead); // 0x0C6100
 
-	DWORD dwEnum = (DWORD)MyDIEnumDevicesCallback;
-	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_ENUM_DEVICES_CALLBACK), (BYTE*)&dwEnum, (BYTE*)&dwRead, 4); // 0x03EEC6
-	DIEnumDevicesCallback = (DIEnumDevicesCallback_type)dwRead;
+	if (!strstr(szCommandLine, CMD_FLAG_NO_DI_HOOKS))
+	{
+		DWORD dwEnum = (DWORD)MyDIEnumDevicesCallback;
+		EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_ENUM_DEVICES_CALLBACK), (BYTE*)&dwEnum, (BYTE*)&dwRead, 4); // 0x03EEC6
+		DIEnumDevicesCallback = (DIEnumDevicesCallback_type)dwRead;
+		
+		BYTE anRead[22];
+		BYTE anNops[22] = { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
+		g_pDirectInput = dwExeAddress + ADDR_LP_DIRECT_INPUT;
+		EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_DI_ENUM_DEVICES_INJECT1), anNops, anRead, 22); // 0x3EEBC
+		EngineHack_WriteJump(hProcess, (LPVOID)(dwExeAddress + ADDR_DI_ENUM_DEVICES_INJECT1), (DWORD)DIEnumDevicesTwice); // 0x3EEBC
+		g_dwJumpBackDIEnumTwice = dwExeAddress + ADDR_DI_ENUM_DEVICES_INJECT2; // 0x3EEC1
+	}
 
 #ifdef PRIMAL_HUNT_BUILD
 	memcpy(g_anLoadRenderLibCode1, (LPVOID)(dwExeAddress + ADDR_LOAD_RENDER_LIB_CODE1), 6); // 0x38219
