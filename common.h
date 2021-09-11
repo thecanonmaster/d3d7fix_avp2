@@ -132,7 +132,8 @@ extern int g_nLastFrameRate;
 #define CVAR_PROFILE	"D3D7FixProfile"
 #define CVAR_PROFILE_EX "D3D7FixProfileEx"
 
-#define CMD_FLAG_NO_DI_HOOKS "+D3D7FixNoDIHooks 1"
+#define CMD_FLAG_NO_DI_HOOKS	"+D3D7FixNoDIHooks 1"
+#define DI_LIB_NAME_HOME		".\\dinput.dll"
 
 #define LITHTECH_EXE	"lithtech.exe"
 #define SERVER_DLL		"server.dll"
@@ -796,6 +797,7 @@ BOOL GetSectionString(char* szSection, char* szKey, char* szValue);
 int GetSectionInt(char* szSection, char* szKey, int nDefault);
 float GetSectionFloat(char* szSection, char* szKey, float fDefault);
 void logf(char *msg, ...);
+BOOL FileExists(char* szName);
 
 void SetCurrProfileDWord(eProfileOption eOption, DWORD dwSet);
 void SetCurrProfileBool(eProfileOption eOption, BOOL bSet);

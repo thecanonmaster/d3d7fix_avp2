@@ -771,3 +771,9 @@ void logf(char *msg, ...)
 	
 	fflush(g_LogFile);
 }
+
+BOOL FileExists(char* szName)
+{
+	struct stat aBuf;   
+	return (stat(szName, &aBuf) == 0); 
+}

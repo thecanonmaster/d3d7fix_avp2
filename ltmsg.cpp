@@ -1121,7 +1121,7 @@ void HookEngineStuff1()
 	
 	EngineHack_WriteFunction(hProcess, (LPVOID)(dwExeAddress + ADDR_LOAD_LIBRARY), (DWORD)MyLoadLibraryA, dwRead); // 0x0C6100
 
-	if (!strstr(szCommandLine, CMD_FLAG_NO_DI_HOOKS))
+	if (!strstr(szCommandLine, CMD_FLAG_NO_DI_HOOKS) && !FileExists(DI_LIB_NAME_HOME))
 	{
 		DWORD dwEnum = (DWORD)MyDIEnumDevicesCallback;
 		EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_ENUM_DEVICES_CALLBACK), (BYTE*)&dwEnum, (BYTE*)&dwRead, 4); // 0x03EEC6
@@ -1133,6 +1133,10 @@ void HookEngineStuff1()
 		EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_DI_ENUM_DEVICES_INJECT1), anNops, anRead, 22); // 0x3EEBC
 		EngineHack_WriteJump(hProcess, (LPVOID)(dwExeAddress + ADDR_DI_ENUM_DEVICES_INJECT1), (DWORD)DIEnumDevicesTwice); // 0x3EEBC
 		g_dwJumpBackDIEnumTwice = dwExeAddress + ADDR_DI_ENUM_DEVICES_INJECT2; // 0x3EEC1
+	}
+	else
+	{
+		logf("DirectInput hooks are disabled!");
 	}
 
 #ifdef PRIMAL_HUNT_BUILD
