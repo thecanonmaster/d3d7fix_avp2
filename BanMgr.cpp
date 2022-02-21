@@ -1,11 +1,16 @@
 #include "StdAfx.h"
 
+int g_nPlayersPerId = 0;
 DWORD g_dwClientDataLen = 0;
 DWORD g_dwNameOffset = 0;
 DWORD g_dwIdOffset = 0;
 
 BanList g_BanList;
+IPList g_InGameIPList;
+
 char* g_szIdSearch;
+
+char* g_aszBanReasons[BAN_REASON_MAX] = { NULL, "Client banned", "Limit reached" };
 
 void GetClientAddr(DWORD hClient, BYTE pAddr[4], WORD *pPort)
 {
@@ -25,15 +30,36 @@ void GetClientAddr(DWORD hClient, BYTE pAddr[4], WORD *pPort)
 	}
 }
 
-bool BanList_HandleEqualFn(const BanItem* pItem)
+bool BanList_HandleEqualFn(const ClientIdItem* pItem)
 {
 	return !strcmp(pItem->m_szId, g_szIdSearch);
 }
 
 void BanList_Add(char* szId)
 {
-	BanItem* pItem = new BanItem(szId);	
+	ClientIdItem* pItem = new ClientIdItem(szId);
 	g_BanList.push_back(pItem);
+}
+
+void InGameIPList_Add(DWORD hClient)
+{
+	BYTE aAddr[4];
+	WORD wPort;
+	GetClientAddr(hClient, aAddr, &wPort);
+
+	g_InGameIPList.push_back(*(DWORD*)aAddr);
+}
+
+void InGameIPList_Remove(DWORD hClient)
+{
+	BYTE aAddr[4];
+	WORD wPort;
+	GetClientAddr(hClient, aAddr, &wPort);
+
+	IPList::iterator iter = std::find(g_InGameIPList.begin(), g_InGameIPList.end(), *(DWORD*)aAddr);
+
+	if (iter != g_InGameIPList.end())
+		g_InGameIPList.erase(iter);	
 }
 
 void BanList_Free()
@@ -45,7 +71,7 @@ void BanList_Free()
 		if (iter == g_BanList.end()) 
 			break;
 
-		BanItem* pItem = *iter;
+		ClientIdItem* pItem = *iter;
 		delete pItem;
 
 		iter++;
@@ -54,7 +80,12 @@ void BanList_Free()
 	g_BanList.clear();
 }
 
-BanItem* BanList_Find(char* szId)
+void InGameIPList_Free()
+{
+	g_InGameIPList.clear();
+}
+
+ClientIdItem* BanList_Find(char* szId)
 {
 	g_szIdSearch = szId;
 	BanList::iterator iter = std::find_if(g_BanList.begin(), g_BanList.end(), BanList_HandleEqualFn);
@@ -65,7 +96,26 @@ BanItem* BanList_Find(char* szId)
 	return NULL;
 }
 
-BOOL BanList_IsBanned(DWORD hClient, void* pClientData, char** szName, char* szIP, char** szID)
+int InGameList_IP_Count(DWORD dwAddr)
+{
+	int nResult = 0;
+	IPList::iterator iter = g_InGameIPList.begin();
+
+	while (true)
+	{
+		if (iter == g_InGameIPList.end())
+			break;
+
+		if ((*iter) == dwAddr)
+			nResult++;
+
+		iter++;
+	}
+
+	return nResult;
+}
+
+eBanReason BanList_IsBanned(DWORD hClient, void* pClientData, char** szName, char* szIP, char** szID, int& nCount)
 {
 	char* szData = (char*)pClientData;	
 	*szName = szData + g_dwNameOffset;
@@ -75,14 +125,24 @@ BOOL BanList_IsBanned(DWORD hClient, void* pClientData, char** szName, char* szI
 	GetClientAddr(hClient, aAddr, &wPort);
 	sprintf(szIP, "%d.%d.%d.%d", aAddr[0], aAddr[1], aAddr[2], aAddr[3]);
 
-	BanItem* pItem = BanList_Find(szIP);
+	ClientIdItem* pItem = BanList_Find(szIP);
 
-	if (g_dwIdOffset && !pItem)
+	if (g_dwIdOffset)
 	{
 		*szID = szData + g_dwIdOffset;
 		pItem = BanList_Find(*szID);
 	}
 
-	return (pItem != NULL);
+	if (pItem != NULL)
+		return BAN_REASON_BANNED;
+
+	if (g_nPlayersPerId)
+	{
+		nCount = InGameList_IP_Count(*(DWORD*)aAddr);
+		if (nCount >= g_nPlayersPerId)
+			return BAN_REASON_LIMIT_IP;
+	}
+
+	return BAN_REASON_NONE;
 }
  

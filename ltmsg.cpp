@@ -29,11 +29,11 @@ void GetD3D7FixVersion(char* szBuffer, BOOL bFullInfo)
 
 #ifndef PRIMAL_HUNT_BUILD
 
-void ReadConfigDS(char* szFilename)
+void ReadConfigDS(char* szFilename, char* szExtFilename)
 {
-	char szSection[2048];
+	char szSection[INI_SECTION_SIZE_DS];
 	strcpy(g_szProfile, PROFILE_DEDICATED_SERVER);
-	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_DEDICATED_SERVER, szSection, 2048, szFilename);
+	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_DEDICATED_SERVER, szSection, INI_SECTION_SIZE_DS, szFilename);
 
 	SectionToCurrProfileBool(szSection, PO_TIME_CALIBRATION, FALSE);
 	SectionToCurrProfileFloat(szSection, PO_SERVER_FPS, 0.0f);
@@ -43,8 +43,9 @@ void ReadConfigDS(char* szFilename)
 
 	if (GetCurrProfileBool(EXT_BAN_MANAGER))
 	{
-		dwSectionSize = GetPrivateProfileSection(BAN_MGR_SECTION, szSection, 2048, szFilename);
+		dwSectionSize = GetPrivateProfileSection(BAN_MGR_SECTION, szSection, INI_SECTION_SIZE_DS, szExtFilename);
 		
+		g_nPlayersPerId = GetSectionInt(szSection, BAN_MGR_PLAYERS_PER_ID, 0);
 		g_dwClientDataLen = GetSectionInt(szSection, BAN_MGR_CLIENT_DATA_LEN, 0);
 		g_dwNameOffset = GetSectionInt(szSection, BAN_MGR_NAME_OFFSET, 0);
 		g_dwIdOffset = GetSectionInt(szSection, BAN_MGR_ID_OFFSET, 0);
@@ -70,22 +71,33 @@ void ReadConfigDS(char* szFilename)
 
 #endif
 
-void ReadConfig(char* szFilename, char* szProfile)
+void ReadPreConfig(char* szFilename)
 {
-	char szSection[2048];
-	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_GLOBAL, szSection, 2048, szFilename);
+	char szSection[INI_SECTION_SIZE];
+	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_GLOBAL, szSection, INI_SECTION_SIZE, szFilename);
+	SectionToCurrProfileString(szSection, PO_RENDER_DLL, RENDER_DLL_DEFAULT);
+	SectionToCurrProfileString(szSection, PO_RENDER_WRAPPER_DLL, RENDER_DLL_DEFAULT);
+}
+
+void ReadConfig(char* szFilename, char* szExtFilename, char* szProfile)
+{
+	char szSection[INI_SECTION_SIZE];
+	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_GLOBAL, szSection, INI_SECTION_SIZE, szFilename);
 	SectionToCurrProfileBool(szSection, PO_DGVOODOO_MODE, FALSE);
 	SectionToCurrProfileFloat(szSection, PO_INTRODUCTION_TIME, 30.0f);
+	SectionToCurrProfileString(szSection, PO_RENDER_DLL, RENDER_DLL_DEFAULT);
+	SectionToCurrProfileString(szSection, PO_RENDER_WRAPPER_DLL, RENDER_DLL_DEFAULT);
+	SectionToCurrProfileString(szSection, PO_CONSOLE_BACKGROUND, CONSOLE_BG_DEFAULT);
 	SectionToCurrProfileString(szSection, PO_DEFAULT_PROFILE);
 
 	if (!szProfile)
 		szProfile = GetCurrProfileString(PO_DEFAULT_PROFILE);
 	
-	dwSectionSize = GetPrivateProfileSection(szProfile, szSection, 2048, szFilename);
+	dwSectionSize = GetPrivateProfileSection(szProfile, szSection, INI_SECTION_SIZE, szFilename);
 	if (!dwSectionSize)
 	{
 		szProfile = PROFILE_CLEAN;
-		dwSectionSize = GetPrivateProfileSection(szProfile, szSection, 2048, szFilename);
+		dwSectionSize = GetPrivateProfileSection(szProfile, szSection, INI_SECTION_SIZE, szFilename);
 	}
 	strcpy(g_szProfile, szProfile);	
 
@@ -110,14 +122,15 @@ void ReadConfig(char* szFilename, char* szProfile)
 
 	SectionToCurrProfileFloat(szSection, PO_MAX_FPS, 0);	
 	SectionToCurrProfileBool(szSection, PO_INTEL_HD, FALSE);
-	SectionToCurrProfileBool(szSection, PO_RADEON_5700, FALSE);
+	SectionToCurrProfileDWord(szSection, PO_RADEON_5700, 0);
 	SectionToCurrProfileBool(szSection, PO_CAMERA_FOV, FALSE);
 	SetCurrProfileFlag(PO_CAMERA_FOV, GetCurrProfileBool(PO_CAMERA_FOV));
 
 	SectionToCurrProfileBool(szSection, PO_VIEW_MODEL_FOV, FALSE);
 	SectionToCurrProfileBool(szSection, PO_SOLID_DRAWING, FALSE);
+	SectionToCurrProfileBool(szSection, PO_SOLID_DRAWING_WHITELIST, FALSE);
 	SectionToCurrProfileBool(szSection, PO_LIGHT_LOAD, FALSE);
-	SectionToCurrProfileBool(szSection, PO_TWM_DETAIL_TEX, FALSE);
+	SectionToCurrProfileDWord(szSection, PO_TWM_DETAIL_TEX, 0);
 	SectionToCurrProfileBool(szSection, PO_TIME_CALIBRATION, FALSE);
 	SectionToCurrProfileBool(szSection, PO_FLIP_SCREEN, FALSE);
 	SectionToCurrProfileBool(szSection, PO_PRELOAD_STATIC_LIGHT, FALSE);
@@ -142,11 +155,85 @@ void ReadConfig(char* szFilename, char* szProfile)
 	if (GetCurrProfileBool(PO_DGVOODOO_MODE))
 	{
 		SetCurrProfileBool(PO_INTEL_HD, FALSE);
-		SetCurrProfileBool(PO_RADEON_5700, FALSE);
+		SetCurrProfileDWord(PO_RADEON_5700, 0);
 		SetCurrProfileBool(PO_LIGHT_LOAD, FALSE);
-		SetCurrProfileBool(PO_TWM_DETAIL_TEX, FALSE);
+		SetCurrProfileDWord(PO_TWM_DETAIL_TEX, 0);
 		SetCurrProfileBool(PO_FULLSCREEN_OPTIMIZE, FALSE);
 		SetCurrProfileBool(PO_STATIC_LIGHT_SURFACES, FALSE);
+	}
+
+	if (GetCurrProfileDWord(PO_TWM_DETAIL_TEX))
+	{
+		dwSectionSize = GetPrivateProfileSection(TWM_DETAIL_FIX_WORLD_LIST, szSection, INI_SECTION_SIZE, szExtFilename);
+
+		char szWorldKey[64];
+		char szWorldValue[MAX_WORLD_NAME_LEN];
+		int i = 0;
+
+		while (true)
+		{
+			sprintf(szWorldKey, TWM_DETAIL_FIX_WORLD, i);
+
+			if (!SectionItemExists(szSection, szWorldKey))
+				break;
+
+			i++;
+		}
+
+		if (i > 0)
+		{
+			TWMDetailTex_WorldList_Reserve(i);
+			i = 0;
+
+			while (true)
+			{
+				sprintf(szWorldKey, TWM_DETAIL_FIX_WORLD, i);
+
+				if (!GetSectionString(szSection, szWorldKey, szWorldValue))
+					break;
+
+				strupr(szWorldValue);
+				TWMDetailTex_WorldList_Add(szWorldValue);
+				i++;
+			}
+		}
+	}
+
+	if (GetCurrProfileBool(PO_SOLID_DRAWING) && GetCurrProfileBool(PO_SOLID_DRAWING_WHITELIST))
+	{
+		dwSectionSize = GetPrivateProfileSection(SOLID_DRAWING_WHITELIST, szSection, INI_SECTION_SIZE, szExtFilename);
+
+		char szFilenameKey[64];
+		char szFilenameValue[MAX_SDW_FILENAME_LEN];
+		int i = 0;
+
+		while (true)
+		{
+			sprintf(szFilenameKey, SDW_FILENAME, i);
+
+			if (!SectionItemExists(szSection, szFilenameKey))
+				break;
+
+			i++;
+		}
+
+		if (i > 0)
+		{
+			SolidDrawingWhitelist_Reserve(i);
+			i = 0;
+
+			while (true)
+			{
+				sprintf(szFilenameKey, SDW_FILENAME, i);
+
+				if (!GetSectionString(szSection, szFilenameKey, szFilenameValue))
+					break;
+
+				strupr(szFilenameValue);
+				SolidDrawingWhitelist_Add(szFilenameValue);
+				i++;
+			}
+		}
 	}
 
 	char* szProfileEx = NULL;
@@ -200,7 +287,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 #ifndef PRIMAL_HUNT_BUILD
 			else if (strstr(g_szParentExeFilename, "Server"))
 			{
+				TWMDetailTex_WorldList_Free();
+				SolidDrawingWhitelist_Free();
 				BanList_Free();
+				InGameIPList_Free();
 				timeEndPeriod(1);
 				fclose( g_LogFile );
 			}
@@ -213,7 +303,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 void ApplyIntelHD_RHW_Fix()
 {
-	DWORD dwDLLAddress = (DWORD)GetModuleHandle(D3D_REN);
+	DWORD dwDLLAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
 	logf("Applying IntelHD RHW fix");
 	
 	float fIntelHDFix = 0.5f;
@@ -349,13 +439,13 @@ DWORD MyDrawSurfaceSolidColor(DWORD hDest, DWORD hSrc, LTRect *pSrcRect, int des
 			hSrc = pString->m_hSurface;
 			
 			g_pLTClient->SetOptimized2DColor(hFillColor); // OldDrawSurfaceSolidColor(hDest, hSrc, pSrcRect, destX, destY, hTransColor, hFillColor);
-			//DWORD dwRet = g_pLTClient->DrawSurfaceToSurfaceTransparent(hDest, hSrc, pSrcRect, destX, destY, hTransColor);	
+			//DWORD dwRet = g_pLTClient->DrawSurfaceToSurfaceTransparent(hDest, hSrc, pSrcRect, destX, destY, hTransColor);
 
 			DWORD dwRet;
 			if (g_MultiLines.size())
 			{
 				//int nSize = g_MultiLines.size();
-				if (!g_MultiLinesIter)
+				if (g_MultiLinesIter == NULL)
 				{
 					dwRet = g_pLTClient->DrawSurfaceToSurfaceTransparent(hDest, hSrc, pSrcRect, destX, destY, hTransColor);	
 					g_MultiLinesIter = g_MultiLines.begin();
@@ -391,6 +481,14 @@ DWORD MyDrawSurfaceSolidColor(DWORD hDest, DWORD hSrc, LTRect *pSrcRect, int des
 
 			g_pLTClient->SetOptimized2DColor(0xFFFFFFFF);
 			
+			return dwRet;
+		}
+		else
+		{
+			g_pLTClient->SetOptimized2DColor(hFillColor);
+			DWORD dwRet = g_pLTClient->DrawSurfaceToSurfaceTransparent(hDest, hSrc, pSrcRect, destX, destY, hTransColor);
+			g_pLTClient->SetOptimized2DColor(0xFFFFFFFF);
+
 			return dwRet;
 		}
 	}
@@ -503,6 +601,38 @@ void MyDrawStringToSurface(DWORD hDest, DWORD hFont, DWORD hString, LTRect* pRec
 	g_pLTClient->SetSurfaceUserData(hOldDest, pString);
 }
 
+DWORD (*OldCreateSurfaceFromBitmap)(char* pBitmapName);
+DWORD MyCreateSurfaceFromBitmap(char* pBitmapName)
+{
+	DWORD hRet = OldCreateSurfaceFromBitmap(pBitmapName);
+
+	if (hRet && SolidDrawingWhitelist_Find(pBitmapName))
+	{
+		DWORD dwHeight = 0;
+		DWORD dwWidth = 0;
+
+		g_pLTClient->GetSurfaceDims(hRet, &dwWidth, &dwHeight);
+		DWORD hCopyRet = g_pLTClient->CreateSurface(dwWidth, dwHeight);
+
+		for (int x = 0; x < dwWidth ; x++)
+		{
+			for (int y = 0; y < dwHeight ; y++)
+			{
+				DWORD dwColor;
+				g_pLTClient->GetPixel(hRet, x, y, &dwColor);
+
+				if (dwColor)
+					g_pLTClient->SetPixel(hCopyRet, x, y, 0x00FFFFFF);
+			}
+		}
+		g_pLTClient->DeleteSurface(hRet);
+
+		return hCopyRet;
+	}
+
+	return hRet;
+}
+
 void ApplySolidDrawing_Fix()
 {
 	logf("Applying solid drawing fix");
@@ -517,8 +647,17 @@ void ApplySolidDrawing_Fix()
 	//g_pLTClient->FillRect = MyFillRect;
 	//OldDeleteSurface = g_pLTClient->DeleteSurface;
 	//g_pLTClient->DeleteSurface = MyDeleteSurface;
+
 	OldDrawStringToSurface = g_pLTClient->DrawStringToSurface;
 	g_pLTClient->DrawStringToSurface = MyDrawStringToSurface;
+
+	if (GetCurrProfileBool(PO_SOLID_DRAWING_WHITELIST))
+	{
+		logf("Applying solid drawing whitelist fix");
+
+		OldCreateSurfaceFromBitmap = g_pLTClient->CreateSurfaceFromBitmap;
+		g_pLTClient->CreateSurfaceFromBitmap = MyCreateSurfaceFromBitmap;
+	}
 }
 
 void (*OldShutdown)();
@@ -606,6 +745,7 @@ void DrawIntroduction()
 		DWORD dwOldColor = *g_pnConTextColor;
 		*g_pnConTextColor = 0x00FF00FF;
 		ILTCSBase_CPrint(g_pLTClient, APP_NAME, APP_VERSION);
+		ILTCSBase_CPrint(g_pLTClient, ACTIVE_PROFILE, g_szProfile);
 		*g_pnConTextColor = dwOldColor;
 	}
 }
@@ -620,14 +760,14 @@ void DrawIntroductionF15()
 	char* szIntro[INTRODUCTION_LINES];
 	sprintf(szTitle, APP_NAME, APP_VERSION);
 	szIntro[0] = szTitle;
-	sprintf(szProfile, "Active profile = %s", g_szProfile);
+	sprintf(szProfile, ACTIVE_PROFILE, g_szProfile);
 	szIntro[1] = szProfile;
 	sprintf(szDescription, "Profile description = %s", GetCurrProfileString(PO_DESCRIPTION));
 	szIntro[2] = szDescription;
 	sprintf(szPostprocess, "Postprocessing enabled = %s", GetCurrProfileBool(PO_POSTPROCESS_ENABLED) ? "TRUE" : "FALSE");
 	szIntro[3] = szPostprocess;
 	szIntro[4] = "Page Up - borderless window toggle";
-	szIntro[5] = "Page Down - draw FPS counter toggle";
+	szIntro[5] = "Page Down - FPS counter mode";
 	
 #ifdef _DEBUG
 	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x006666FF, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF };
@@ -653,7 +793,32 @@ void DrawFrameRate()
 	else if (g_nLastFrameRate < FRAME_RATE_LEVEL_YELLOW)
 		hFontColor = 0x00FFFF00;
 
-	DrawFont15String(szBuffer, 5, g_dwHeight - (FONT15_HEIGHT * FRAME_RATE_FONT_SCALE) - 5, 1, FRAME_RATE_FONT_SCALE, hFontColor);
+	switch (g_eDrawFPS)
+	{
+		case FCP_LEFT_BOTTOM:
+			DrawFont15String(szBuffer, 5, g_dwHeight - (FONT15_HEIGHT * FRAME_RATE_FONT_SCALE) - 5, 1, FRAME_RATE_FONT_SCALE, hFontColor);
+		break;
+
+		case FCP_LEFT_TOP:
+			DrawFont15String(szBuffer, 5, 5, 1, FRAME_RATE_FONT_SCALE, hFontColor);
+		break;
+
+		case FCP_RIGHT_TOP:
+		{
+			int nLength = strlen(szBuffer);
+			DrawFont15String(szBuffer, g_dwWidth - (FONT15_WIDTH * nLength * FRAME_RATE_FONT_SCALE) - 5 - nLength, 
+				5, 1, FRAME_RATE_FONT_SCALE, hFontColor);
+		}
+		break;
+
+		case FCP_RIGHT_BOTTOM:
+		{
+			int nLength = strlen(szBuffer);
+			DrawFont15String(szBuffer, g_dwWidth - (FONT15_WIDTH * nLength * FRAME_RATE_FONT_SCALE) - 5 - nLength, 
+				g_dwHeight - (FONT15_HEIGHT * FRAME_RATE_FONT_SCALE) - 5, 1, FRAME_RATE_FONT_SCALE, hFontColor);
+		}
+		break;
+	}
 }
 
 void DrawFrameRateOld()
@@ -774,6 +939,16 @@ void __fastcall MyIClientShell_Update(void* pShell)
 	//float fTest = ILTCSBase_GetVarValueFloat(hTestVar);
 }
 
+void __fastcall MyIClientShell_PreLoadWorld(void* pShell, void* notUsed, char *pWorldName)
+{
+	if (TWMDetailTex_WorldList_Find(pWorldName))
+		g_bInTWMDetailTex_WorldList = TRUE;
+	else
+		g_bInTWMDetailTex_WorldList = FALSE;
+
+	IClientShell_PreLoadWorld(pShell, notUsed, pWorldName);
+}
+
 DWORD (*OldEndOptimized2D)();
 DWORD MyEndOptimized2D()
 {
@@ -783,7 +958,7 @@ DWORD MyEndOptimized2D()
 	if (fIntroTime && fTime - g_fIntroductionStartTime < fIntroTime)
 		DrawIntroduction();
 	
-	if (GetCurrProfileBool(PO_SHOW_FPS) && g_bDrawFPS)
+	if (GetCurrProfileBool(PO_SHOW_FPS) && g_eDrawFPS != FCP_DISABLED)
 		DrawFrameRate();
 	
 	if (g_bDrawConsole)
@@ -920,10 +1095,12 @@ void __fastcall MyIServerShell_Update(void* pShell, float timeElapsed)
 			char* szName = NULL;
 			char szIP[64];
 			char* szID = NULL;
+			int nCount = 0;
 			
-			if (BanList_IsBanned(hCurrClient, pClientData, &szName, szIP, &szID))
+			eBanReason eReason = BanList_IsBanned(hCurrClient, pClientData, &szName, szIP, &szID, nCount);
+			if (eReason != BAN_REASON_NONE)
 			{		
-				sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s) is banned! [IServerShell_Update]", szName, szIP, szID);
+				sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s - %s - %d) [IServerShell_Update]", szName, szIP, szID, g_aszBanReasons[eReason], nCount);
 				logf(szBuffer + 6);
 				ILTCSBase_CPrint(g_pLTServer, szBuffer);
 
@@ -968,15 +1145,17 @@ void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD h
 		char* szName = NULL;
 		char szIP[64];
 		char* szID = NULL;
+		int nCount = 0;
 		
-		if (BanList_IsBanned(hClient, pClientData, &szName, szIP, &szID))
+		eBanReason eReason = BanList_IsBanned(hClient, pClientData, &szName, szIP, &szID, nCount);
+		if (eReason != BAN_REASON_NONE)
 		{		
-			sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s) is banned! [VerifyClient]", szName, szIP, szID);
+			sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s  - %s - %d) [VerifyClient]", szName, szIP, szID, g_aszBanReasons[eReason], nCount);
 			nVerifyCode = LT_DISCON_MISCCRC;
 		}
 		else
 		{			
-			sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s) is good to go!", szName, szIP, szID);
+			sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s - %d) is good to go!", szName, szIP, szID, nCount);
 		}
 
 		logf(szBuffer + 6);
@@ -993,18 +1172,34 @@ void* __fastcall MyIServerShell_OnClientEnterWorld(void* pShell, void* notUsed, 
 		char* szName = NULL;
 		char szIP[64];
 		char* szID = NULL;
+		int nCount = 0;
 
-		if ((g_dwClientDataLen && g_dwClientDataLen != clientDataLen) || BanList_IsBanned(hClient, pClientData, &szName, szIP, &szID))
+		if (g_dwClientDataLen && g_dwClientDataLen != clientDataLen || BanList_IsBanned(hClient, pClientData, &szName, szIP, &szID, nCount) != BAN_REASON_NONE)
+		{
 			g_bVerifyClientBypassed = TRUE;
+			return pResult;
+		}
+
+		InGameIPList_Add(hClient);
 	}
 	
 	return pResult;
+}
+
+void __fastcall MyIServerShell_OnClientExitWorld(void* pShell, void* notUsed, DWORD hClient)
+{
+	if (GetCurrProfileBool(EXT_BAN_MANAGER) && hClient)
+		InGameIPList_Remove(hClient);
+
+	IServerShell_OnClientExitWorld(pShell, notUsed, hClient);
 }
 
 void __fastcall MyIServerShell_PostStartWorld(void* pShell)
 {
 	g_fLastMOTDTime = 0.0f;
 	g_bExtraCacheListApplied = FALSE;
+	InGameIPList_Free();
+
 	IServerShell_PostStartWorld(pShell);
 }
 
@@ -1034,7 +1229,7 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 
 	ILTServer_GetClientData = (ILTServer_GetClientData_type)pOrigTable[V_SERVER_GET_CLIENT_DATA]; // 124
 
-	ReadConfigDS(".\\ltmsg.ini");
+	ReadConfigDS(INI_FILENAME, INI_FILENAME_EXT);
 	
 	if (GetCurrProfileBool(PO_TIME_CALIBRATION))
 		ApplyTimeCalibrationDS_Fix();
@@ -1048,7 +1243,9 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	IServerShell_VerifyClient = (IServerShell_VerifyClient_type)pOrigTable[V_SSHELL_VERIFY_CLIENT]; // 4
 	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_VERIFY_CLIENT), (DWORD)MyIServerShell_VerifyClient, dwRead); // 4
 	IServerShell_OnClientEnterWorld = (IServerShell_OnClientEnterWorld_type)pOrigTable[V_SSHELL_ON_CLIENT_ENTER_WORLD]; // 5
-	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_ON_CLIENT_ENTER_WORLD), (DWORD)MyIServerShell_OnClientEnterWorld, dwRead); // 5	
+	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_ON_CLIENT_ENTER_WORLD), (DWORD)MyIServerShell_OnClientEnterWorld, dwRead); // 5
+	IServerShell_OnClientExitWorld = (IServerShell_OnClientExitWorld_type)pOrigTable[V_SSHELL_ON_CLIENT_EXIT_WORLD]; // 6
+	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_ON_CLIENT_EXIT_WORLD), (DWORD)MyIServerShell_OnClientExitWorld, dwRead); // 6
 	IServerShell_PostStartWorld = (IServerShell_PostStartWorld_type)pOrigTable[V_SSHELL_POST_START_WORLD]; // 8
 	EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_SSHELL_POST_START_WORLD), (DWORD)MyIServerShell_PostStartWorld, dwRead); // 8
 
@@ -1186,7 +1383,7 @@ void HookEngineStuff2()
 	DWORD dwRead;
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
-	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
 	g_pClientMgr = (CClientMgrBase*)(dwExeAddress + ADDR_CLIENT_MGR); // 0xDEFAC
 	g_pServerMgr = (CServerMgrBase*)(dwExeAddress + ADDR_SERVER_MGR); // 0xE5DC8
 	g_pLTClient = g_pClientMgr->m_pClientMgr->m_pLTClient;
@@ -1219,7 +1416,7 @@ void HookEngineStuff2()
 	
 	if (g_pLTClient->Shutdown != MyShutdown)
 	{
-		ReadConfig(".\\ltmsg.ini", szProfile);
+		ReadConfig(INI_FILENAME, INI_FILENAME_EXT, szProfile);
 		
 		OldShutdown = g_pLTClient->Shutdown;
 		OldShutdownWithMessage = g_pLTClient->ShutdownWithMessage;
@@ -1233,6 +1430,9 @@ void HookEngineStuff2()
 		g_pLTClient->ShutdownWithMessage = MyShutdownWithMessage;
 		g_pLTClient->EndOptimized2D = MyEndOptimized2D;
 		g_pLTClient->CreateObject = MyCreateObject;
+
+		IClientShell_PreLoadWorld = (IClientShell_PreLoadWorld_type)pOrigTable[V_CSHELL_PRELOAD_WORLD]; // 15
+		EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_CSHELL_PRELOAD_WORLD), (DWORD)MyIClientShell_PreLoadWorld, dwRead); // 9
 		
 		IClientShell_Update = (IClientShell_Update_type)pOrigTable[V_CSHELL_UPDATE]; // 15
 		EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + V_CSHELL_UPDATE), (DWORD)MyIClientShell_Update, dwRead); // 15
@@ -1292,7 +1492,7 @@ void ApplyLightLoad_Fix()
 	logf("Applying light load fix");
 
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
 	//DWORD dwRenderStruct = dwDllAddress + 0x58470;
 
 	EngineHack_WriteCall(hProcess, (LPVOID)(DWORD(dwDllAddress) + ADDR_D3DDEVICE_LOAD_CALL), (DWORD)FakeD3DDevice_Load, TRUE); // 0x34CF2
@@ -1303,11 +1503,56 @@ ConVarFloat* g_pDetailTextures;
 
 typedef void (*sub_3F0A2A7_type)();
 void (*sub_3F0A2A7)();
-void My_sub_3F0A2A7()
+void My_sub_3F0A2A7_AlphaTWM()
 {
-	g_pDetailTextures->m_dwVal = 0;
-	sub_3F0A2A7();	
-	g_pDetailTextures->m_dwVal = 1;
+	int nFixFlags = GetCurrProfileDWord(PO_TWM_DETAIL_TEX);
+	if ((nFixFlags & FIX_FLG_TWM_DETAILTEX_CHROMAKEYED) ||
+		(g_bInTWMDetailTex_WorldList && (nFixFlags & FIX_FLG_TWM_DETAILTEX_ALL_IN_LIST)))
+	{
+		g_pDetailTextures->m_dwVal = 0;
+		sub_3F0A2A7();
+		g_pDetailTextures->m_dwVal = 1;
+	}
+	else
+	{
+		sub_3F0A2A7();
+	}
+}
+
+DWORD g_dwD3DBaseAddr;
+DWORD g_dwFromAddr;
+void My_sub_3F0A2A7_OtherTWM()
+{
+	// AVP2:
+	// 14bf0
+	// 14638
+	// 9c5f
+	// Primal Hunt:
+	// 15670
+	// 150b8
+
+	if (g_bInTWMDetailTex_WorldList && g_dwFromAddr - g_dwD3DBaseAddr == ADDR_D3D_SUB_3F0A2A7_FOTWM) // 0x14638
+	{
+		g_pDetailTextures->m_dwVal = 0;
+		sub_3F0A2A7();
+		g_pDetailTextures->m_dwVal = 1;
+	}
+	else
+	{
+		sub_3F0A2A7();
+	}
+}
+
+__declspec(naked) void My_sub_3F0A2A7_OtherTWM_Wrapper()
+{
+	_asm
+	{
+		push eax
+		mov eax, [esp + 4]
+		mov g_dwFromAddr, eax
+		pop eax
+		jmp My_sub_3F0A2A7_OtherTWM
+	}
 }
 
 void ApplyTWMDetailTex_Fix()
@@ -1315,11 +1560,15 @@ void ApplyTWMDetailTex_Fix()
 	logf("Applying TWM detail textures fix");
 
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
+	g_dwD3DBaseAddr = dwDllAddress;
 
 	g_pDetailTextureCapable = (BOOL*)(dwDllAddress + ADDR_D3D_DETAIL_TEX_CAPABLE); // 0x5DE2C
 	sub_3F0A2A7 = (sub_3F0A2A7_type)(dwDllAddress + ADDR_D3D_SUB_3F0A2A7); // 0xA2A7
-	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_SUB_3F0A2A7_CALL), (DWORD)My_sub_3F0A2A7, FALSE); // 0x9C5A
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_SUB_3F0A2A7_CALL), (DWORD)My_sub_3F0A2A7_AlphaTWM, FALSE); // 0x9C5A
+
+	if (GetCurrProfileDWord(PO_TWM_DETAIL_TEX) & FIX_FLG_TWM_DETAILTEX_ALL_IN_LIST)
+		EngineHack_WriteJump(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_SUB_3F0A2A7_JUMP), (DWORD)My_sub_3F0A2A7_OtherTWM_Wrapper); // 0xAC84
 
 	g_pDetailTextures = (ConVarFloat*)(dwDllAddress + ADDR_D3D_DETAIL_TEXTURES); // 0x51448
 }
@@ -1504,7 +1753,7 @@ void ApplyDynamicLightSurfaces_Fix()
 	logf("Applying dynamic light surfaces fix");
 	
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
 
 	DWORD* dwSurfaceCounts = (DWORD*)(dwDllAddress + ADDR_D3D_DLIGHT_SURFACE_COUNTS); // 0x4BF50
 	dwSurfaceCounts[0] = DLIGHT_SURFACES_COUNT_OVERRIDE;
@@ -1545,7 +1794,7 @@ void ApplyStaticLightSurfaces_Fix()
 	
 	BYTE anOld[32];
 	HANDLE hProcess = GetCurrentProcess();
-	DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
 	
 	r_FindFreeSlot = (r_FindFreeSlot_type)(dwDllAddress + ADDR_D3D_FIND_FREE_SLOT); // 0x34000
@@ -1663,7 +1912,7 @@ HRESULT WINAPI FakeDirectDrawCreateEx(GUID FAR * lpGUID, LPVOID *lplpDD, REFIID 
 	if (GetCurrProfileBool(PO_LIGHT_LOAD))
 		ApplyLightLoad_Fix();
 
-	if (GetCurrProfileBool(PO_TWM_DETAIL_TEX))
+	if (GetCurrProfileDWord(PO_TWM_DETAIL_TEX))
 		ApplyTWMDetailTex_Fix();
 
 	if (GetCurrProfileBool(PO_TIME_CALIBRATION))
@@ -1698,11 +1947,15 @@ HRESULT WINAPI FakeDirectDrawCreateEx(GUID FAR * lpGUID, LPVOID *lplpDD, REFIID 
 HMODULE WINAPI MyLoadLibraryA(LPCSTR lpFileName)
 {
 	HMODULE hModule = LoadLibraryA(lpFileName);
+	char* szRenderWrapperDll = GetCurrProfileString(PO_RENDER_WRAPPER_DLL);
+
+	if (!szRenderWrapperDll[0])
+		ReadPreConfig(INI_FILENAME);
 	
-	if (_stricmp(lpFileName, D3D_REN) == 0)
+	if (_stricmp(lpFileName, GetCurrProfileString(PO_RENDER_WRAPPER_DLL)) == 0)
 	{ 
 		HANDLE hProcess = GetCurrentProcess();
-		DWORD dwDllAddress = (DWORD)GetModuleHandle(D3D_REN);
+		DWORD dwDllAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
 		
 		EngineHack_WriteFunction(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_DDRAW_CREATE_EX), (DWORD)FakeDirectDrawCreateEx, g_dwOriginalD3D); // 0x46000
 	}

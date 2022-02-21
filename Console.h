@@ -1,7 +1,6 @@
 #define MAX_CONSOLE_TEXTLEN 256
 #define CONSOLE_FONT_SCALE 2
 #define CONSOLE_LINE_SPACE 2
-#define CONSOLE_BACKGROUND_ALPHA 0.75f
 
 typedef void (*ErrorLogFn)(char *pMsg);
 

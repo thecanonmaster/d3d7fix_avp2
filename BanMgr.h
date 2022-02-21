@@ -1,6 +1,6 @@
-struct BanItem
+struct ClientIdItem
 {
-	BanItem(char* szId)
+	ClientIdItem(char* szId)
 	{
 		strcpy(m_szId, szId);
 	}
@@ -8,9 +8,21 @@ struct BanItem
 	char m_szId[64];
 };
 
-typedef std::list<BanItem*> BanList;
+typedef std::list<ClientIdItem*> BanList;
+typedef std::list<DWORD> IPList;
+
+enum eBanReason
+{
+	BAN_REASON_NONE = 0,
+	BAN_REASON_BANNED = 1,
+	BAN_REASON_LIMIT_IP,
+	BAN_REASON_MAX,
+};
+
+extern char* g_aszBanReasons[BAN_REASON_MAX];
 
 #define BAN_MGR_SECTION			"Ban_Manager"
+#define BAN_MGR_PLAYERS_PER_ID	"PlayersPerId"
 #define BAN_MGR_CLIENT_DATA_LEN	"ClientDataLen"
 #define BAN_MGR_NAME_OFFSET		"NameOffset"
 #define BAN_MGR_ID_OFFSET		"IdOffset"
@@ -18,10 +30,13 @@ typedef std::list<BanItem*> BanList;
 
 #define BAN_MGR_CLIENT_REJECTED	"Client rejected"
 
+extern int g_nPlayersPerId;
 extern DWORD g_dwClientDataLen;
 extern DWORD g_dwNameOffset;
 extern DWORD g_dwIdOffset;
+
 extern BanList g_BanList;
+extern IPList g_InGameIPList;
 
 class CUDPConn
 {
@@ -48,6 +63,10 @@ private:
 };
 
 void BanList_Add(char* szId);
+void InGameIPList_Add(DWORD hClient);
+void InGameIPList_Remove(DWORD hClient);
+
 void BanList_Free();
-BanItem* BanList_Find(char* szId);
-BOOL BanList_IsBanned(DWORD hClient, void* pClientData, char** szName, char* szIP, char** szID);
+void InGameIPList_Free();
+
+eBanReason BanList_IsBanned(DWORD hClient, void* pClientData, char** szName, char* szIP, char** szID, int& nCount);

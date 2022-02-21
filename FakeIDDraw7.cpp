@@ -115,7 +115,11 @@ LRESULT CALLBACK NewWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 	if (uMsg == WM_KEYDOWN)
 	{
 		if (wParam == VK_NEXT)
-			g_bDrawFPS = !g_bDrawFPS;
+		{
+			g_eDrawFPS = (eFpsCounterPos)(g_eDrawFPS + 1);
+			if (g_eDrawFPS == FCP_MAX)
+				g_eDrawFPS = FCP_LEFT_BOTTOM;
+		}
 
 		if (GetCurrProfileBool(PO_ENABLE_CONSOLE) && wParam == 0xC0)
 			g_bDrawConsole = !g_bDrawConsole;

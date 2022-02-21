@@ -17,10 +17,13 @@ void Console_Init()
 	{
 		g_dwLastWidth = g_dwWidth;
 		g_dwLastHeight = g_dwHeight;
-		
+
+		DWORD dwColor = strtoul(GetCurrProfileString(PO_CONSOLE_BACKGROUND), NULL, 0);
 		g_hBackground = g_pLTClient->CreateSurface(1, 1);
-		g_pLTClient->SetPixel(g_hBackground, 0, 0, 0x00005500);
-		g_pLTClient->SetSurfaceAlpha(g_hBackground, CONSOLE_BACKGROUND_ALPHA);
+
+		g_pLTClient->SetPixel(g_hBackground, 0, 0, dwColor & 0x00FFFFFF);
+
+		g_pLTClient->SetSurfaceAlpha(g_hBackground, (float)(dwColor >> 24) / 255.0f);
 		g_pLTClient->OptimizeSurface(g_hBackground, 0);
 	
 		char szVersionStr[64];

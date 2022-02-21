@@ -1,8 +1,8 @@
 #include "StdAfx.h"
 
 FILE* g_LogFile = NULL;
-char g_szProfile[64];
-BOOL g_bDrawFPS = TRUE;
+char g_szProfile[64] = { 0 };
+eFpsCounterPos g_eDrawFPS = FCP_LEFT_BOTTOM;
 DWORD g_dwWidth = 1024;
 DWORD g_dwHeight = 768;
 BOOL g_bWindowedSet = FALSE;
@@ -19,6 +19,9 @@ CClassMgrBase* g_pClassMgr = NULL;
 ILTClient* g_pLTClient = NULL;
 ILTServer* g_pLTServer = NULL;
 float g_fLastFontListUpdate = 0.0f;
+BOOL g_bInTWMDetailTex_WorldList = FALSE;
+WorldList g_TWMDetailTex_WorldList;
+SDWList g_SolidDrawingWhitelist;
 
 LONG g_lRMILastX = 0;
 LONG g_lRMILastY = 0;
@@ -29,6 +32,9 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "DgVoodooMode"),
 	ProfileOption(POT_STRING, "DefaultProfile"),
 	ProfileOption(POT_FLOAT, "IntroductionTime"),
+	ProfileOption(POT_STRING, "RenderDll"),
+	ProfileOption(POT_STRING, "RenderWrapperDll"),
+	ProfileOption(POT_STRING, "ConsoleBackground"),
 	ProfileOption(POT_STRING, "Misc_Description"),
 	ProfileOption(POT_BYTE, "Misc_CleanMode"),
 	ProfileOption(POT_BYTE, "Misc_DontShutdownRenderer"),
@@ -40,14 +46,15 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "Misc_NoEnvMapConsolePrint"),
 	ProfileOption(POT_FLOAT, "Fix_MaxFPS"),
 	ProfileOption(POT_BYTE, "Fix_IntelHD"),
-	ProfileOption(POT_BYTE, "Fix_Radeon5700"),
+	ProfileOption(POT_DWORD, "Fix_Radeon5700"),
 	ProfileOption(POT_BYTE, "Fix_CameraFOV"),
 	ProfileOption(POT_BYTE, "Fix_ViewModelFOV"),
 	ProfileOption(POT_BYTE, "Fix_SolidDrawing"),
+	ProfileOption(POT_BYTE, "Fix_SolidDrawingWhitelist"),
 	ProfileOption(POT_BYTE, "Fix_LightLoad"),
 	ProfileOption(POT_BYTE, "Fix_MiscCC"),
 	ProfileOption(POT_BYTE, "Fix_RawMouseInput"),
-	ProfileOption(POT_BYTE, "Fix_TWMDetailTex"),
+	ProfileOption(POT_DWORD, "Fix_TWMDetailTex"),
 	ProfileOption(POT_BYTE, "Fix_TimeCalibration"),
 	ProfileOption(POT_BYTE, "Fix_FlipScreen"),
 	ProfileOption(POT_BYTE, "Fix_DynamicLightSurfaces"),
@@ -91,11 +98,13 @@ char* (__stdcall *ILTCSBase_GetVarValueString)(DWORD hVar);
 float (__fastcall *ILTCSBase_GetTime)(ILTCSBase* pBase);
 float (__fastcall *ILTCSBase_GetFrameTime)(ILTCSBase* pBase);
 
+void (__fastcall *IClientShell_PreLoadWorld)(void* pShell, void* notUsed, char *pWorldName);
 void (__fastcall *IClientShell_Update)(void* pShell);
 
 void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
 void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 void* (__fastcall *IServerShell_OnClientEnterWorld)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD clientDataLen);
+void* (__fastcall *IServerShell_OnClientExitWorld)(void* pShell, void* notUsed, DWORD hClient);
 DWORD (__fastcall *IServerShell_ServerAppMessageFn)(void* pShell, void* notUsed, char *pMsg, int nLen);
 void (__fastcall *IServerShell_PostStartWorld)(void* pShell);
 
@@ -502,7 +511,7 @@ void CreateIntroductionSurface()
 	sprintf(szPostprocess, "Postprocessing enabled = %s", g_ProfileOptions[PO_POSTPROCESS_ENABLED].bValue ? "TRUE" : "FALSE");
 	szIntro[3] = szPostprocess;
 	szIntro[4] = "Page Up - borderless window toggle";
-	szIntro[5] = "Page Down - draw FPS counter toggle";
+	szIntro[5] = "Page Down - FPS counter mode";
 
 #ifdef _DEBUG
 	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x006666FF, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF };
@@ -523,6 +532,31 @@ void CreateIntroductionSurface()
 	}
 
 	g_pLTClient->DeleteFont(hFont);
+}
+
+BOOL SectionItemExists(char* szSection, char* szKey)
+{
+	int nKeyLen = strlen(szKey);
+	int nCurrStart = 0;
+	char* szCurr = szSection;
+	int i = 0;
+
+	while (true)
+	{
+		if (szSection[i] == 0)
+		{
+			szCurr = szSection + nCurrStart;
+			if (!strncmp(szCurr, szKey, nKeyLen) && szCurr[nKeyLen] == '=')
+				return TRUE;
+
+			if (szSection[i + 1] == 0)
+				return FALSE;
+
+			nCurrStart = i + 1;
+		}
+
+		i++;
+	}
 }
 
 BOOL GetSectionString(char* szSection, char* szKey, char* szValue)
@@ -647,6 +681,14 @@ void SectionToCurrProfileString(char* szSection, eProfileOption eOption)
 	GetSectionString(szSection, g_ProfileOptions[eOption].szName, g_ProfileOptions[eOption].szValue);
 }
 
+void SectionToCurrProfileString(char* szSection, eProfileOption eOption, char* szDefault)
+{
+	GetSectionString(szSection, g_ProfileOptions[eOption].szName, g_ProfileOptions[eOption].szValue);
+
+	if (!g_ProfileOptions[eOption].szValue[0])
+		strcpy(g_ProfileOptions[eOption].szValue, szDefault);
+}
+
 void ParseCVarProfile(char* szData)
 {
 	char szBuffer[16];
@@ -756,6 +798,20 @@ void LogCurrProfile()
 			case POT_DWORD: logf("%s = %d", g_ProfileOptions[i].szName, g_ProfileOptions[i].dwValue); break;
 		}
 	}
+
+	i = 0;
+	WorldList::iterator iter = g_TWMDetailTex_WorldList.begin();
+	while (true)
+	{
+		if (iter == g_TWMDetailTex_WorldList.end())
+			break;
+
+		WorldListItem* pItem = *iter;
+		logf("TWMDetailTex_WorldList[%d] = %s", i, pItem->m_szWorldName);
+
+		iter++;
+		i++;
+	}
 }
 
 void logf(char *msg, ...)
@@ -776,4 +832,120 @@ BOOL FileExists(char* szName)
 {
 	struct stat aBuf;   
 	return (stat(szName, &aBuf) == 0); 
+}
+
+void TWMDetailTex_WorldList_Reserve(int nSize)
+{
+	g_TWMDetailTex_WorldList.reserve(nSize);
+}
+
+void TWMDetailTex_WorldList_Add(char* szName)
+{
+	g_TWMDetailTex_WorldList.push_back(new WorldListItem(szName));
+}
+
+char* g_szWorldNameSearch;
+bool WorldList_HandleEqualFn(const WorldListItem* pItem)
+{
+	return !strcmp(pItem->m_szWorldName, g_szWorldNameSearch);
+}
+
+WorldListItem* TWMDetailTex_WorldList_Find(char* szName)
+{
+	char szTemp[MAX_WORLD_NAME_LEN] = { 0 };
+	strcpy(szTemp, szName);
+	strupr(szTemp);
+	
+	g_szWorldNameSearch = szTemp;
+	WorldList::iterator iter = std::find_if(g_TWMDetailTex_WorldList.begin(), g_TWMDetailTex_WorldList.end(), WorldList_HandleEqualFn);
+
+	if (iter != g_TWMDetailTex_WorldList.end())
+		return (*iter);
+
+	return NULL;
+}
+
+void TWMDetailTex_WorldList_Free()
+{
+	WorldList::iterator iter = g_TWMDetailTex_WorldList.begin();
+
+	while (true)
+	{
+		if (iter == g_TWMDetailTex_WorldList.end())
+			break;
+
+		WorldListItem* pItem = *iter;
+		delete pItem;
+
+		iter++;
+	}
+
+	g_TWMDetailTex_WorldList.clear();
+}
+
+void TWMDetailTex_WorldList_AppendFromFile(char* szFilename)
+{
+	FILE* file = fopen(szFilename, "r");
+	if (file == NULL)
+		return;
+
+	char szLine[MAX_WORLD_NAME_LEN] = { 0 };
+	int nLen = 0;
+
+	while (fgets(szLine, MAX_WORLD_NAME_LEN, file))
+	{
+		szLine[strcspn(szLine, "\r\n")] = 0;
+		TWMDetailTex_WorldList_Add(szLine);
+	}
+
+	fclose(file);
+}
+
+void SolidDrawingWhitelist_Reserve(int nSize)
+{
+	g_SolidDrawingWhitelist.reserve(nSize);
+}
+
+void SolidDrawingWhitelist_Add(char* szFilename)
+{
+	g_SolidDrawingWhitelist.push_back(new FilenameItem(szFilename));
+}
+
+char* g_szSDWFilenameSearch;
+bool SDWList_HandleEqualFn(const FilenameItem* pItem)
+{
+	return !strcmp(pItem->m_szFilename, g_szSDWFilenameSearch);
+}
+
+FilenameItem* SolidDrawingWhitelist_Find(char* szFilename)
+{
+	char szTemp[MAX_SDW_FILENAME_LEN] = { 0 };
+	strcpy(szTemp, szFilename);
+	strupr(szTemp);
+
+	g_szSDWFilenameSearch = szTemp;
+	SDWList::iterator iter = std::find_if(g_SolidDrawingWhitelist.begin(), g_SolidDrawingWhitelist.end(), SDWList_HandleEqualFn);
+
+	if (iter != g_SolidDrawingWhitelist.end())
+		return (*iter);
+
+	return NULL;
+}
+
+void SolidDrawingWhitelist_Free()
+{
+	SDWList::iterator iter = g_SolidDrawingWhitelist.begin();
+
+	while (true)
+	{
+		if (iter == g_SolidDrawingWhitelist.end())
+			break;
+
+		FilenameItem* pItem = *iter;
+		delete pItem;
+
+		iter++;
+	}
+
+	g_SolidDrawingWhitelist.clear();
 }

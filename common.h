@@ -12,6 +12,9 @@ enum eProfileOption
 	PO_DGVOODOO_MODE = 0,
 	PO_DEFAULT_PROFILE = 1,
 	PO_INTRODUCTION_TIME,
+	PO_RENDER_DLL,
+	PO_RENDER_WRAPPER_DLL,
+	PO_CONSOLE_BACKGROUND,
 	PO_DESCRIPTION,
 	PO_CLEAN_MODE,
 	PO_DONT_SHUTDOWN_RENDERER,
@@ -27,6 +30,7 @@ enum eProfileOption
 	PO_CAMERA_FOV,
 	PO_VIEW_MODEL_FOV,
 	PO_SOLID_DRAWING,
+	PO_SOLID_DRAWING_WHITELIST,
 	PO_LIGHT_LOAD,
 	PO_MISC_CC,
 	PO_RAW_MOUSE_INPUT,
@@ -51,6 +55,16 @@ enum eProfileOption
 	EXT_MOTD_STRING,
 	EXT_CACHE_LIST,
 	PO_MAX,
+};
+
+enum eFpsCounterPos
+{
+	FCP_LEFT_BOTTOM = 0,
+	FCP_LEFT_TOP = 1,
+	FCP_RIGHT_TOP,
+	FCP_RIGHT_BOTTOM,
+	FCP_DISABLED,
+	FCP_MAX
 };
 
 struct ProfileOption
@@ -89,12 +103,38 @@ struct ProfileOption
 	BOOL				bFlag;
 	char				szName[128];
 	eProfileOptionType	eType;
-}; 
+};
+
+#define MAX_WORLD_NAME_LEN		100
+#define MAX_SDW_FILENAME_LEN	128
+
+struct WorldListItem
+{
+	WorldListItem(char* szId)
+	{
+		strcpy(m_szWorldName, szId);
+	}
+	
+	char m_szWorldName[MAX_WORLD_NAME_LEN];
+};
+
+struct FilenameItem
+{
+	FilenameItem(char* szFilename)
+	{
+		strcpy(m_szFilename, szFilename);
+	}
+
+	char m_szFilename[MAX_SDW_FILENAME_LEN];
+};
+
+typedef std::vector<WorldListItem*> WorldList;
+typedef std::vector<FilenameItem*> SDWList;
 
 extern FILE* g_LogFile;
 //extern ProfileOption g_ProfileOptions[PO_MAX];
 extern char g_szProfile[64];
-extern BOOL g_bDrawFPS;
+extern eFpsCounterPos g_eDrawFPS;
 extern DWORD g_dwWidth;
 extern DWORD g_dwHeight;
 extern BOOL g_bWindowedSet;
@@ -106,6 +146,7 @@ extern LPDIRECTDRAW7 g_ddMainDDraw;
 extern HWND g_hWindowHandle;
 extern BOOL g_bWindowHooked;
 extern float g_fLastFontListUpdate;
+extern BOOL g_bInTWMDetailTex_WorldList;
 
 extern LONG g_lRMILastX;
 extern LONG g_lRMILastY;
@@ -115,30 +156,38 @@ extern int g_nLastFrameRate;
 
 #ifdef _DEBUG
 #ifdef PRIMAL_HUNT_BUILD
-	#define APP_NAME		"D3D7FIX v%g for AVP2 Primal Hunt (ltmsg.dll, DEBUG)"
+	#define APP_NAME				"D3D7FIX v%g for AVP2 Primal Hunt (ltmsg.dll, DEBUG)"
 #else
-	#define APP_NAME		"D3D7FIX v%g for Aliens vs Predator 2 (ltmsg.dll, DEBUG)"
+	#define APP_NAME				"D3D7FIX v%g for Aliens vs Predator 2 (ltmsg.dll, DEBUG)"
 #endif
 #else
 #ifdef PRIMAL_HUNT_BUILD
-	#define APP_NAME		"D3D7FIX v%g for AVP2 Primal Hunt (ltmsg.dll)"
+	#define APP_NAME				"D3D7FIX v%g for AVP2 Primal Hunt (ltmsg.dll)"
 #else
-	#define APP_NAME		"D3D7FIX v%g for Aliens vs Predator 2 (ltmsg.dll)"
+	#define APP_NAME				"D3D7FIX v%g for Aliens vs Predator 2 (ltmsg.dll)"
 #endif
 #endif
 
+#define ACTIVE_PROFILE	"Active profile = %s"
 #define APP_NAME_SHORT	"D3D7FIX v%g"
 #define APP_VERSION		0.32f
 #define CVAR_PROFILE	"D3D7FixProfile"
 #define CVAR_PROFILE_EX "D3D7FixProfileEx"
 
+#define INI_FILENAME		".\\ltmsg.ini"
+#define INI_FILENAME_EXT	".\\ltmsg_ext.ini"
+
+#define INI_SECTION_SIZE		2048
+#define INI_SECTION_SIZE_DS		4096
+
 #define CMD_FLAG_NO_DI_HOOKS	"+D3D7FixNoDIHooks 1"
 #define DI_LIB_NAME_HOME		".\\dinput.dll"
 
-#define LITHTECH_EXE	"lithtech.exe"
-#define SERVER_DLL		"server.dll"
-#define D3D_REN			"d3d.ren"
-#define LTMSG_LOG		"ltmsg.log"
+#define LITHTECH_EXE		"lithtech.exe"
+#define SERVER_DLL			"server.dll"
+#define RENDER_DLL_DEFAULT	"d3d.ren"
+#define CONSOLE_BG_DEFAULT	"0x8F00FF00"
+#define LTMSG_LOG			"ltmsg.log"
 
 #define OBJECT_LTO_LOWER	"object.lto"
 #define OBJECT_LTO_UPPER	"OBJECT.LTO"
@@ -148,6 +197,10 @@ extern int g_nLastFrameRate;
 #define PROFILE_GLOBAL				"Global"
 #define PROFILE_CLEAN				"Clean"
 #define PROFILE_DEDICATED_SERVER	"Dedicated_Server"
+#define TWM_DETAIL_FIX_WORLD_LIST	"TWMDetailTex_WorldList"
+#define SOLID_DRAWING_WHITELIST		"SolidDrawingWhitelist"
+#define TWM_DETAIL_FIX_WORLD		"World%d"
+#define SDW_FILENAME				"Filename%d"
 
 #define DS_INTRO_DELAY				10.0f
 
@@ -167,6 +220,12 @@ extern int g_nLastFrameRate;
 #define FRAME_RATE_UPDATE_TIME	0.2f
 #define FRAME_RATE_LEVEL_RED	30
 #define FRAME_RATE_LEVEL_YELLOW	55
+
+#define FIX_FLG_R5700_FLICKERING_MODELS		(1<<0)
+#define FIX_FLG_R5700_BLACK_SCREEEN			(1<<1)
+
+#define FIX_FLG_TWM_DETAILTEX_CHROMAKEYED	(1<<0)
+#define FIX_FLG_TWM_DETAILTEX_ALL_IN_LIST	(1<<1)
 
 #define FLIPSCREEN_CANDRAWCONSOLE	(1<<0)
 #define FLIPSCREEN_COPY				(1<<1)
@@ -347,7 +406,7 @@ public:
 typedef std::list<SolidSurface*> SolidSurfaceList;*/
 
 struct FontString;
-typedef std::vector<FontString*> FSLines;
+typedef std::list<FontString*> FSLines;
 
 struct FontString
 {
@@ -531,10 +590,12 @@ typedef char* (__stdcall *ILTCSBase_GetVarValueString_type)(DWORD hVar);
 typedef float (__fastcall *ILTCSBase_GetTime_type)(ILTCSBase* pBase);
 typedef float (__fastcall *ILTCSBase_GetFrameTime_type)(ILTCSBase* pBase);
 
+typedef void (__fastcall *IClientShell_PreLoadWorld_type)(void* pShell, void* notUsed, char *pWorldName);
 typedef void (__fastcall *IClientShell_Update_type)(void* pShell);
 typedef void (__fastcall *IServerShell_Update_type)(void* pShell, float timeElapsed);
 typedef void (__fastcall *IServerShell_VerifyClient_type)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 typedef void* (__fastcall *IServerShell_OnClientEnterWorld_type)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD clientDataLen);
+typedef void* (__fastcall *IServerShell_OnClientExitWorld_type)(void* pShell, void* notUsed, DWORD hClient);
 typedef DWORD (__fastcall *IServerShell_ServerAppMessageFn_type)(void* pShell, void* notUsed, char *pMsg, int nLen);
 typedef void (__fastcall *IServerShell_PostStartWorld_type)(void* pShell);
 
@@ -547,19 +608,30 @@ extern char* (__stdcall *ILTCSBase_GetVarValueString)(DWORD hVar);
 extern float (__fastcall *ILTCSBase_GetTime)(ILTCSBase* pBase);
 extern float (__fastcall *ILTCSBase_GetFrameTime)(ILTCSBase* pBase);
 
+extern void (__fastcall *IClientShell_PreLoadWorld)(void* pShell, void* notUsed, char *pWorldName);
 extern void (__fastcall *IClientShell_Update)(void* pShell);
 extern void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
 extern void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 extern void* (__fastcall *IServerShell_OnClientEnterWorld)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD clientDataLen);
+extern void* (__fastcall *IServerShell_OnClientExitWorld)(void* pShell, void* notUsed, DWORD hClient);
 extern DWORD (__fastcall *IServerShell_ServerAppMessageFn)(void* pShell, void* notUsed, char *pMsg, int nLen);
 extern void (__fastcall *IServerShell_PostStartWorld)(void* pShell);
 
+class StartGameRequest
+{
+public:
+	
+	int				m_Type;
+	char			m_WorldName[MAX_WORLD_NAME_LEN];
+	// More there
+};
 
 class ILTClient: public ILTCSBase
 {
 public:
 
-	BYTE			m_Data0[24]; // 52
+	DWORD			(*StartGame)(StartGameRequest *pRequest);
+	BYTE			m_Data0[20]; // 24 52
 	void			(*Shutdown)();
 	void			(*ShutdownWithMessage)( char *pMsg, ... );
 	DWORD			(*FlipScreen)(DWORD flags);	
@@ -784,15 +856,17 @@ void CreateFont15Surface();
 void ReoptimizeFont15Surface();
 void DrawFont15String(char* szString, int nX, int nY, int nSpacing, int nScale, DWORD dwColor, DWORD hDestSurfOverride = NULL);
 void CreateIntroductionSurface();
+
 BOOL RegisterRawMouseDevice();
 void ProcessRawMouseInput(LPARAM lParam, LONG& lLastX, LONG& lLastY);
+
 void EngineHack_WriteData(HANDLE hProcess, LPVOID lpAddr, BYTE* pNew, BYTE* pOld, DWORD dwSize);
 void EngineHack_WriteFunction(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew, DWORD& dwOld);
 void EngineHack_WriteCall(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew, BOOL bStructCall);
 void EngineHack_AllowWrite(HANDLE hProcess, LPVOID lpAddr, DWORD dwSize);
 void EngineHack_WriteJump(HANDLE hProcess, LPVOID lpAddr, DWORD dwNew);
 
-
+BOOL SectionItemExists(char* szSection, char* szKey);
 BOOL GetSectionString(char* szSection, char* szKey, char* szValue);
 int GetSectionInt(char* szSection, char* szKey, int nDefault);
 float GetSectionFloat(char* szSection, char* szKey, float fDefault);
@@ -814,7 +888,18 @@ void ParseCVarProfile(char* szData);
 void LogCurrProfile();
 char* ParseCacheString(char* szString, DWORD& dwType);
 
+void TWMDetailTex_WorldList_Reserve(int nSize);
+void TWMDetailTex_WorldList_Add(char* szName);
+WorldListItem* TWMDetailTex_WorldList_Find(char* szName);
+void TWMDetailTex_WorldList_Free();
+
+void SolidDrawingWhitelist_Reserve(int nSize);
+void SolidDrawingWhitelist_Add(char* szFilename);
+FilenameItem* SolidDrawingWhitelist_Find(char* szFilename);
+void SolidDrawingWhitelist_Free();
+
 void SectionToCurrProfileBool(char* szSection, eProfileOption eOption, int nDefault);
 void SectionToCurrProfileDWord(char* szSection, eProfileOption eOption, DWORD dwDefault);
 void SectionToCurrProfileFloat(char* szSection, eProfileOption eOption, float fDefault);
 void SectionToCurrProfileString(char* szSection, eProfileOption eOption);
+void SectionToCurrProfileString(char* szSection, eProfileOption eOption, char* szDefault);

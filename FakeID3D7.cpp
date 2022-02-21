@@ -93,9 +93,9 @@ HRESULT FakeID3D7::CreateDevice(REFCLSID rclsid,LPDIRECTDRAWSURFACE7 lpDDS,LPDIR
 	g_d3dDevice = *lplpD3DDevice;
 	g_ddsBackBuffer = lpDDS;
 
-	if (hResult == DD_OK && GetCurrProfileBool(PO_RADEON_5700))
+	if (hResult == DD_OK && (GetCurrProfileDWord(PO_RADEON_5700) & FIX_FLG_R5700_FLICKERING_MODELS))
 	{
-		logf("Radeon 5700 vertex buffer compatibility mode is enabled");
+		logf("Radeon 5700 compatibility mode is enabled");
 		
 		DWORD* pOrigTable = (DWORD*)*(DWORD*)*lplpD3DDevice; // VX: 87 full table	
 		
