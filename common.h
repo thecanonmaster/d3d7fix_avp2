@@ -181,6 +181,7 @@ extern int g_nLastFrameRate;
 #define INI_SECTION_SIZE_DS		4096
 
 #define CMD_FLAG_NO_DI_HOOKS	"+D3D7FixNoDIHooks 1"
+#define CMD_FLAG_NO_RS_HOOK		"+D3D7FixNoRenderSceneHook 1"
 #define DI_LIB_NAME_HOME		".\\dinput.dll"
 
 #define LITHTECH_EXE		"lithtech.exe"

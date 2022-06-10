@@ -800,16 +800,30 @@ void LogCurrProfile()
 	}
 
 	i = 0;
-	WorldList::iterator iter = g_TWMDetailTex_WorldList.begin();
+	WorldList::iterator iter1 = g_TWMDetailTex_WorldList.begin();
 	while (true)
 	{
-		if (iter == g_TWMDetailTex_WorldList.end())
+		if (iter1 == g_TWMDetailTex_WorldList.end())
 			break;
 
-		WorldListItem* pItem = *iter;
+		WorldListItem* pItem = *iter1;
 		logf("TWMDetailTex_WorldList[%d] = %s", i, pItem->m_szWorldName);
 
-		iter++;
+		iter1++;
+		i++;
+	}
+
+	i = 0;
+	SDWList::iterator iter2 = g_SolidDrawingWhitelist.begin();
+	while (true)
+	{
+		if (iter2 == g_SolidDrawingWhitelist.end())
+			break;
+		
+		FilenameItem* pItem = *iter2;
+		logf("SolidDrawingWhitelist[%d] = %s", i, pItem->m_szFilename);
+		
+		iter2++;
 		i++;
 	}
 }

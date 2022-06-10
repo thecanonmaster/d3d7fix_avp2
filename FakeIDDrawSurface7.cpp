@@ -235,6 +235,12 @@ HRESULT FakeIDDrawSurface7Prime::EnumOverlayZOrders(DWORD a,LPVOID b,LPDDENUMSUR
 
 HRESULT FakeIDDrawSurface7Prime::Flip(LPDIRECTDRAWSURFACE7 a, DWORD b)
 {	
+	if ((GetCurrProfileDWord(PO_RADEON_5700) & FIX_FLG_R5700_BLACK_SCREEEN) && m_pIDDrawSurface->IsLost())
+	{
+		g_ddMainDDraw->RestoreAllSurfaces();
+		ReoptimizeFont15Surface();
+	}
+	
 	FrameLimiter();
 	
 	HRESULT hResult = m_pIDDrawSurface->Flip(a, b);

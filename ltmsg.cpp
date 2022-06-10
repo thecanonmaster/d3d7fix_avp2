@@ -867,6 +867,10 @@ DWORD g_hExtraFOVXOffset = 0;
 DWORD g_hExtraFOVYOffset = 0;
 float g_fLastExtraFOVXOffset = 0.0f;
 
+BOOL* g_pDetailTextureCapable;
+ConVarFloat* g_pDetailTextures;
+ConVarFloat* g_pEnvMapWorld;
+
 #define MATH_PI 3.141592f
 #define VIEW_MODE_BASE_ASPECT 1.333333f
 
@@ -949,21 +953,27 @@ void __fastcall MyIClientShell_PreLoadWorld(void* pShell, void* notUsed, char *p
 	IClientShell_PreLoadWorld(pShell, notUsed, pWorldName);
 }
 
-DWORD (*OldEndOptimized2D)();
-DWORD MyEndOptimized2D()
+int g_nLastDrawMode = DRAWMODE_NORMAL;
+void DrawIntroAndFramerate()
 {
 	float fTime = ILTCSBase_GetTime(g_pLTClient);
 	float fIntroTime = GetCurrProfileFloat(PO_INTRODUCTION_TIME);
 
 	if (fIntroTime && fTime - g_fIntroductionStartTime < fIntroTime)
 		DrawIntroduction();
-	
-	if (GetCurrProfileBool(PO_SHOW_FPS) && g_eDrawFPS != FCP_DISABLED)
+
+	if (GetCurrProfileBool(PO_SHOW_FPS) && g_eDrawFPS != FCP_DISABLED && g_nLastDrawMode == DRAWMODE_NORMAL)
 		DrawFrameRate();
-	
+
 	if (g_bDrawConsole)
 		Console_Draw();
-	
+}
+
+DWORD (*OldEndOptimized2D)();
+DWORD MyEndOptimized2D()
+{	
+	DrawIntroAndFramerate();
+
 	return OldEndOptimized2D();
 }
 
@@ -995,8 +1005,10 @@ DWORD MyCreateObject(ObjectCreateStruct *pStruct)
 BOOL g_bVisionModeEnabled = FALSE;
 typedef int (*d3d_RenderScene_type)(SceneDesc *pDesc);
 int (*d3d_RenderScene)(SceneDesc *pDesc);
-int My_d3d_RenderScene(SceneDesc* pDesc)
+int My_d3d_RenderScenePP(SceneDesc* pDesc)
 {
+	g_nLastDrawMode = pDesc->m_DrawMode;
+	
 	if (pDesc->m_DrawMode == DRAWMODE_OBJECTLIST || g_bDrawConsole)
 		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY_MENU);
 	else if (g_bVisionModeEnabled)
@@ -1004,6 +1016,12 @@ int My_d3d_RenderScene(SceneDesc* pDesc)
 	else
 		g_dwPPCurrIntensity = GetCurrProfileDWord(PO_POSTPROCESS_INTENSITY);
 	
+	return d3d_RenderScene(pDesc);
+}
+
+int My_d3d_RenderScene(SceneDesc* pDesc)
+{
+	g_nLastDrawMode = pDesc->m_DrawMode;
 	return d3d_RenderScene(pDesc);
 }
 
@@ -1480,10 +1498,17 @@ void HookEngineStuff2()
 	BYTE nOld;
 	EngineHack_WriteData(hProcess, (LPVOID)(dwExeAddress + ADDR_CREATE_FONT_QUALITY), &nNew, &nOld, 1); // 0x9B5B5
 
-	if (GetCurrProfileBool(PO_POSTPROCESS_ENABLED))
+	d3d_RenderScene = (d3d_RenderScene_type)(dwDllAddress + ADDR_D3D_RENDER_SCENE); // 0x17AA0
+	if (GetCurrProfileBool(PO_POSTPROCESS_ENABLED))	
 	{
-		d3d_RenderScene = (d3d_RenderScene_type)(dwDllAddress + ADDR_D3D_RENDER_SCENE); // 0x17AA0
-		EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + ADDR_D3D_RENDER_STRUCT) + ADDR_D3D_RENDER_SCENE_TABLE), (DWORD)My_d3d_RenderScene, dwRead); // 0x58470 0xB8
+		EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + ADDR_D3D_RENDER_STRUCT) + ADDR_D3D_RENDER_SCENE_TABLE), (DWORD)My_d3d_RenderScenePP, dwRead); // 0x58470 0xB8
+	}
+	else
+	{
+		char* szCommandLine = GetCommandLine();
+				
+		if (!strstr(szCommandLine, CMD_FLAG_NO_RS_HOOK))
+			EngineHack_WriteFunction(hProcess, (LPVOID)(*(DWORD*)(dwDllAddress + ADDR_D3D_RENDER_STRUCT) + ADDR_D3D_RENDER_SCENE_TABLE), (DWORD)My_d3d_RenderScene, dwRead);
 	}
 }
 
@@ -1497,9 +1522,6 @@ void ApplyLightLoad_Fix()
 
 	EngineHack_WriteCall(hProcess, (LPVOID)(DWORD(dwDllAddress) + ADDR_D3DDEVICE_LOAD_CALL), (DWORD)FakeD3DDevice_Load, TRUE); // 0x34CF2
 }
-
-BOOL* g_pDetailTextureCapable;
-ConVarFloat* g_pDetailTextures;
 
 typedef void (*sub_3F0A2A7_type)();
 void (*sub_3F0A2A7)();
@@ -1531,7 +1553,7 @@ void My_sub_3F0A2A7_OtherTWM()
 	// 15670
 	// 150b8
 
-	if (g_bInTWMDetailTex_WorldList && g_dwFromAddr - g_dwD3DBaseAddr == ADDR_D3D_SUB_3F0A2A7_FOTWM) // 0x14638
+ 	if (g_bInTWMDetailTex_WorldList && g_dwFromAddr - g_dwD3DBaseAddr == ADDR_D3D_SUB_3F0A2A7_FOTWM) // 0x14638
 	{
 		g_pDetailTextures->m_dwVal = 0;
 		sub_3F0A2A7();
@@ -1571,6 +1593,7 @@ void ApplyTWMDetailTex_Fix()
 		EngineHack_WriteJump(hProcess, (LPVOID)(dwDllAddress + ADDR_D3D_SUB_3F0A2A7_JUMP), (DWORD)My_sub_3F0A2A7_OtherTWM_Wrapper); // 0xAC84
 
 	g_pDetailTextures = (ConVarFloat*)(dwDllAddress + ADDR_D3D_DETAIL_TEXTURES); // 0x51448
+	g_pEnvMapWorld = (ConVarFloat*)(dwDllAddress + 0x51408); // 0x51408 0x55438
 }
 
 float g_fServerFrameTimeClamp = 0.001f;
