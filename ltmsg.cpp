@@ -35,6 +35,7 @@ void ReadConfigDS(char* szFilename, char* szExtFilename)
 	strcpy(g_szProfile, PROFILE_DEDICATED_SERVER);
 	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_DEDICATED_SERVER, szSection, INI_SECTION_SIZE_DS, szFilename);
 
+	SectionToCurrProfileDWord(szSection, PO_UPD_PROG_DMG_OBJECT_LTO, 0);
 	SectionToCurrProfileBool(szSection, PO_TIME_CALIBRATION, FALSE);
 	SectionToCurrProfileFloat(szSection, PO_SERVER_FPS, 0.0f);
 	SectionToCurrProfileBool(szSection, EXT_BAN_MANAGER, FALSE);
@@ -1226,6 +1227,25 @@ void __fastcall MyIServerShell_PostStartWorld(void* pShell)
 	return IServerShell_ServerAppMessageFn(pShell, notUsed, pMsg, nLen);
 }*/
 
+/*DWORD g_dwOriginalGHBN;
+hostent* __stdcall My_gethostbyname(const char *name)
+{
+	hostent* pRet = gethostbyname(name);
+
+	return pRet;
+}*/
+
+/*typedef void* (*packet_Get_type)(void* a1, WORD a2, WORD a3);
+void* (*packet_Get)(void* a1, WORD a2, WORD a3);
+void* My_packet_Get(void* a1, WORD a2, WORD a3)
+{
+
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
+	DWORD dwSomeObj = *(DWORD*)(dwDllAddress + 0x7FA4C);
+
+	return packet_Get(a1, a2, a3);
+}*/
+
 typedef DWORD (*LoadServerBinaries_type)(CClassMgr *pClassMgr);
 DWORD (*LoadServerBinaries)(CClassMgr *pClassMgr);
 DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
@@ -1271,6 +1291,17 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	{
 		IServerShell_ServerAppMessageFn = (IServerShell_ServerAppMessageFn_type)pOrigTable[V_SSHELL_SERVER_APP_MESSAGE_FN]; // 1
 		//EngineHack_WriteFunction(hProcess, (LPVOID)(pOrigTable + 1), (DWORD)MyIServerShell_ServerAppMessageFn, dwRead);
+	}
+
+	/*EngineHack_WriteFunction(hProcess, (LPVOID)(dwDllAddress + 0x691E8), (DWORD)My_gethostbyname, g_dwOriginalGHBN);
+	packet_Get = (packet_Get_type)(dwDllAddress + 0x2E963);
+	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x29514), (DWORD)My_packet_Get, FALSE);*/
+
+	if (GetCurrProfileDWord(PO_UPD_PROG_DMG_OBJECT_LTO))
+	{
+		DWORD dwObjDllAddress = (DWORD)GetModuleHandle(OBJECT_LTO_UPPER);
+		DWORD dwZero = 0;
+		EngineHack_WriteData(hProcess, (LPVOID)(dwObjDllAddress + GetCurrProfileDWord(PO_UPD_PROG_DMG_OBJECT_LTO)), (BYTE*)&dwZero, (BYTE*)&dwRead, 4);
 	}
 
 	return dwResult;

@@ -63,6 +63,7 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_BYTE, "Fix_FullscreenOptimize"),
 	ProfileOption(POT_BYTE, "Fix_NoVSync"),
 	ProfileOption(POT_DWORD, "Fix_UpdateObjectLTO"),
+	ProfileOption(POT_DWORD, "Fix_UpdProgDmgObjectLTO"),
 	ProfileOption(POT_BYTE, "Fix_FastCRCCheck"),
 	ProfileOption(POT_FLOAT, "RMI_ScaleGlobal"),
 	ProfileOption(POT_FLOAT, "RMI_ScaleY"),
