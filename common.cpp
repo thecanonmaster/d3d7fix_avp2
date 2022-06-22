@@ -356,7 +356,8 @@ void EngineHack_WriteData(LPVOID lpAddr, BYTE* pNew, BYTE* pOld, DWORD dwSize)
 	DWORD dwOldProtect, dwTemp;
 	void* pContent = (DWORD*)lpAddr;
 	
-	VirtualProtect(lpAddr, dwSize, PAGE_EXECUTE_READWRITE, &dwOldProtect);
+	if (!VirtualProtect(lpAddr, dwSize, PAGE_EXECUTE_READWRITE, &dwOldProtect))
+		logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 	
 	memcpy(pOld, pContent, dwSize);
 	memcpy(pContent, pNew, dwSize);
@@ -369,7 +370,9 @@ void EngineHack_WriteFunction(LPVOID lpAddr, DWORD dwNew, DWORD& dwOld)
 	DWORD dwOldProtect, dwTemp;
 	DWORD* dwContent = (DWORD*)lpAddr;
 	
-	VirtualProtect(lpAddr, 4, PAGE_EXECUTE_READWRITE, &dwOldProtect);	
+	if (!VirtualProtect(lpAddr, 4, PAGE_EXECUTE_READWRITE, &dwOldProtect))
+		logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
+
 	dwOld = dwContent[0];
 	dwContent[0] = dwNew;
 	VirtualProtect(lpAddr, 4, dwOldProtect, &dwTemp);
@@ -384,7 +387,8 @@ void EngineHack_WriteCall(LPVOID lpAddr, DWORD dwNew, BOOL bStructCall)
 	
 	if (bStructCall)
 	{
-		VirtualProtect(lpAddr, 6, PAGE_EXECUTE_READWRITE, &dwOldProtect);
+		if (!VirtualProtect(lpAddr, 6, PAGE_EXECUTE_READWRITE, &dwOldProtect))
+			logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 		
 		pContent[0] = 0xE8; 
 		pCodeContent[0] = dwCallCode;
@@ -394,7 +398,8 @@ void EngineHack_WriteCall(LPVOID lpAddr, DWORD dwNew, BOOL bStructCall)
 	}
 	else
 	{
-		VirtualProtect(lpAddr, 5, PAGE_EXECUTE_READWRITE, &dwOldProtect);
+		if (!VirtualProtect(lpAddr, 5, PAGE_EXECUTE_READWRITE, &dwOldProtect))
+			logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 		
 		pContent[0] = 0xE8; 
 		pCodeContent[0] = dwCallCode;
@@ -406,7 +411,9 @@ void EngineHack_WriteCall(LPVOID lpAddr, DWORD dwNew, BOOL bStructCall)
 void EngineHack_AllowWrite(LPVOID lpAddr, DWORD dwSize)
 {
 	DWORD dwOldProtect;	
-	VirtualProtect(lpAddr, dwSize, PAGE_EXECUTE_READWRITE, &dwOldProtect);	
+
+	if (!VirtualProtect(lpAddr, dwSize, PAGE_EXECUTE_READWRITE, &dwOldProtect))
+		logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 }
 
 void EngineHack_WriteJump(LPVOID lpAddr, DWORD dwNew)
@@ -417,7 +424,8 @@ void EngineHack_WriteJump(LPVOID lpAddr, DWORD dwNew)
 	DWORD dwCallCode = dwNew - (DWORD)lpAddr - 5;
 	
 	
-	VirtualProtect(lpAddr, 5, PAGE_EXECUTE_READWRITE, &dwOldProtect);
+	if (!VirtualProtect(lpAddr, 5, PAGE_EXECUTE_READWRITE, &dwOldProtect))
+		logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 	
 	pContent[0] = 0xE9; 
 	pCodeContent[0] = dwCallCode;

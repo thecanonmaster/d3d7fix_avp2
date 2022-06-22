@@ -11,6 +11,7 @@ void HookEngineStuff1();
 void HookDSStuff1();
 void ApplyTimeCalibrationDS_Fix();
 void ApplyExtraCacheListDS_Fix();
+void ApplyUpdateProgDamageCrash_Fix();
 
 #endif
 
@@ -1274,6 +1275,9 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	if (GetCurrProfileString(EXT_CACHE_LIST)[0])
 		ApplyExtraCacheListDS_Fix();
 
+	if (GetCurrProfileDWord(PO_UPD_PROG_DMG_OBJECT_LTO))
+		ApplyUpdateProgDamageCrash_Fix();
+
 	pOrigTable = (DWORD*)*(DWORD*)g_pServerMgr->m_pServerMgr->m_pServerShell;	
 	IServerShell_Update = (IServerShell_Update_type)pOrigTable[V_SSHELL_UPDATE]; // 15
 	EngineHack_WriteFunction((LPVOID)(pOrigTable + V_SSHELL_UPDATE), (DWORD)MyIServerShell_Update, dwRead); // 15
@@ -1295,13 +1299,6 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	/*EngineHack_WriteFunction(hProcess, (LPVOID)(dwDllAddress + 0x691E8), (DWORD)My_gethostbyname, g_dwOriginalGHBN);
 	packet_Get = (packet_Get_type)(dwDllAddress + 0x2E963);
 	EngineHack_WriteCall(hProcess, (LPVOID)(dwDllAddress + 0x29514), (DWORD)My_packet_Get, FALSE);*/
-
-	if (GetCurrProfileDWord(PO_UPD_PROG_DMG_OBJECT_LTO))
-	{
-		DWORD dwObjDllAddress = (DWORD)GetModuleHandle(OBJECT_LTO_UPPER);
-		DWORD dwZero = 0;
-		EngineHack_WriteData((LPVOID)(dwObjDllAddress + GetCurrProfileDWord(PO_UPD_PROG_DMG_OBJECT_LTO)), (BYTE*)&dwZero, (BYTE*)&dwRead, 4);
-	}
 
 	return dwResult;
 }
@@ -1698,6 +1695,17 @@ void ApplyTimeCalibration_Fix()
 }
 
 #ifndef PRIMAL_HUNT_BUILD
+
+void ApplyUpdateProgDamageCrash_Fix()
+{
+	logf("Applying UpdateProgressiveDamage crash fix");
+
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(OBJECT_LTO_UPPER);
+	BYTE anOld[4];
+	DWORD dwZero = 0;
+
+	EngineHack_WriteData((LPVOID)(dwDllAddress + GetCurrProfileDWord(PO_UPD_PROG_DMG_OBJECT_LTO)), (BYTE*)&dwZero, anOld, 4);
+}
 
 void ApplyTimeCalibrationDS_Fix()
 {
