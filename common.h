@@ -765,6 +765,38 @@ public:
     DWORD			m_nResTrees;
 };*/
 
+class CBindModule
+{
+public:
+
+	HMODULE m_hInstance;
+	DWORD m_dwType;
+
+	// more?
+};
+
+class CObjectModule
+{
+public:
+
+	DWORD m_dwData0;
+	DWORD m_dwData1;
+	CBindModule* m_pModule;
+
+	// more?
+};
+
+class CShellModule
+{
+public:
+
+	CBindModule* m_pModule;
+	void* m_pFunc1;
+	void* m_pFunc2;
+
+	// more?
+};
+
 class CClientShell // 5660
 {
 public:
@@ -782,8 +814,13 @@ public:
 	BYTE			m_Data1[1220];
 	ILTClient*		m_pLTClient;
 
-	BYTE			m_Data11[344];
-	void*			m_pClientShell;
+	BYTE			m_Data11[332]; // 344
+
+	CBindModule*	m_pClientResourceModule;
+	CBindModule*	m_pLocalizedClientResourceModule;
+    CShellModule*	m_pShellModule;
+
+	void*			m_pClientShell; // 1568
 	
 	BYTE			m_Data2[3392]; // 3740
 	float			m_CurTimeCopy;
@@ -795,7 +832,7 @@ public:
 	void*			m_pClientFileMgr;
 	char*			m_ResTrees[MAX_RESTREES];
     DWORD			m_nResTrees;
-	void*			m_pDemoMgr;
+	void*			m_pDemoMgr; // 5788
 };
 
 class CClientMgrBase
@@ -840,6 +877,10 @@ public:
 class CClassMgr
 {
 public:
+
+	CObjectModule*		m_pObjectModule;
+	CBindModule*		m_pServerResourceModule;
+	CShellModule*		m_pShellModule;
 	
 };
 

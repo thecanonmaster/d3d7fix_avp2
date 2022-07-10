@@ -1700,7 +1700,7 @@ void ApplyUpdateProgDamageCrash_Fix()
 {
 	logf("Applying UpdateProgressiveDamage crash fix");
 
-	DWORD dwDllAddress = (DWORD)GetModuleHandle(OBJECT_LTO_UPPER);
+	DWORD dwDllAddress = (DWORD)g_pClassMgr->m_pClassMgr->m_pShellModule->m_pModule->m_hInstance;
 	BYTE anOld[4];
 	DWORD dwZero = 0;
 
