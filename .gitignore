@@ -35,6 +35,7 @@
 _old/
 Debug/
 Release/
+.vs/
 *.plg
 *.opt
 *.ncb
