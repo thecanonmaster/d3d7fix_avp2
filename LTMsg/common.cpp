@@ -1,4 +1,5 @@
 #include "StdAfx.h"
+#include <iostream>
 
 FILE* g_LogFile = NULL;
 char g_szProfile[64] = { 0 };
@@ -796,8 +797,8 @@ char* ParseCacheString(char* szString, DWORD& dwType)
 void LogCurrProfile()
 {
 	logf("Profile = %s", g_szProfile);
-	
-	for (int i = 0; i < PO_MAX ; i++)
+	int i = 0;
+	for (i = 0; i < PO_MAX ; i++)
 	{
 		switch (g_ProfileOptions[i].eType)
 		{
@@ -877,7 +878,7 @@ WorldListItem* TWMDetailTex_WorldList_Find(char* szName)
 {
 	char szTemp[MAX_WORLD_NAME_LEN] = { 0 };
 	strcpy(szTemp, szName);
-	strupr(szTemp);
+	_strupr(szTemp);
 	
 	g_szWorldNameSearch = szTemp;
 	WorldList::iterator iter = std::find_if(g_TWMDetailTex_WorldList.begin(), g_TWMDetailTex_WorldList.end(), WorldList_HandleEqualFn);
@@ -944,7 +945,7 @@ FilenameItem* SolidDrawingWhitelist_Find(char* szFilename)
 {
 	char szTemp[MAX_SDW_FILENAME_LEN] = { 0 };
 	strcpy(szTemp, szFilename);
-	strupr(szTemp);
+	_strupr(szTemp);
 
 	g_szSDWFilenameSearch = szTemp;
 	SDWList::iterator iter = std::find_if(g_SolidDrawingWhitelist.begin(), g_SolidDrawingWhitelist.end(), SDWList_HandleEqualFn);

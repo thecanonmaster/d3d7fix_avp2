@@ -80,8 +80,8 @@ void PostProcess(LPDIRECT3DDEVICE7 device, LPDIRECTDRAWSURFACE7 surface)
 	device->GetRenderState(D3DRENDERSTATE_DESTBLEND, &state.D3DRENDERSTATE_DESTBLEND);
 	device->GetRenderState(D3DRENDERSTATE_TEXTUREFACTOR, &state.D3DRENDERSTATE_TEXTUREFACTOR);
 	device->GetRenderState(D3DRENDERSTATE_FOGENABLE, &state.D3DRENDERSTATE_FOGENABLE);
-
-	for(int c=0; c<savestages; c++) 
+	int c = 0;
+	for(c=0; c<savestages; c++) 
 	{
 		device->GetTexture(c, &state.stage[c].tex);
 		device->GetTextureStageState(c, D3DTSS_MAGFILTER, &state.stage[c].D3DTSS_MAGFILTER);
@@ -158,7 +158,7 @@ void PostProcess(LPDIRECT3DDEVICE7 device, LPDIRECTDRAWSURFACE7 surface)
 			const float offset[4][2]={{1.5, .5}, {-.5, 1.5}, {-1.5, -.5}, {.5, -1.5}};
 
 			// Blend in the bloom map several times with some UV offsets.
-			for(int c=0; c<4; c++) 
+			for(c=0; c<4; c++) 
 			{
 				device->SetTexture(c, ppState.m_ddsBloom[i-1]);
 				device->SetTextureStageState(c, D3DTSS_ADDRESS, D3DTADDRESS_CLAMP);
@@ -333,8 +333,8 @@ void PostProcState::Init(LPDIRECTDRAWSURFACE7 dds)
 		float fRatio = (float)desc.dwWidth/(float)desc.dwHeight;
 		desc.dwHeight = dwBloomHeight;
 		desc.dwWidth = DWORD(dwBloomHeight * fRatio);
-		
-		for(int i = 0; i < POST_PROCESS_MAX_MAPS_PBT; i++)
+		int i = 0;
+		for(i = 0; i < POST_PROCESS_MAX_MAPS_PBT; i++)
 		{			
 			g_ddMainDDraw->CreateSurface(&desc, &m_ddsBloom[i], 0);
 			m_dwBloomWidth[i] = desc.dwWidth;

@@ -1,6 +1,5 @@
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN
 #define D3D_OVERLOADS
 
 //#define PRIMAL_HUNT_BUILD
@@ -24,6 +23,3 @@
 #include "BanMgr.h"
 #include "crc32.h"
 #include "sys/STAT.H"
-
-
-

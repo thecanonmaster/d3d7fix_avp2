@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LocalDebuggerCommand>C:\Program Files %28x86%29\Aliens vs. Predator 2\lithtech.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>-rez AVP2 -rez avp2p5.rez +runworld worlds\depot +windowed 1 +borderless 1</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>C:\Program Files %28x86%29\Aliens vs. Predator 2\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+</Project>

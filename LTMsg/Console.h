@@ -1,3 +1,5 @@
+#include <string>
+#include <vector>
 #define MAX_CONSOLE_TEXTLEN 256
 #define CONSOLE_FONT_SCALE 2
 #define CONSOLE_LINE_SPACE 2
@@ -63,7 +65,24 @@ public:
 		
 		return ret;
 	}
+
+	// Add a new line to the end of the list
+	inline CConTextLine* AddTail(char* pText, DWORD Color)
+	{
+		CConTextLine* pNewLine = new CConTextLine;
+		pNewLine->m_pGPrev = m_pHead->m_pGPrev;
+		pNewLine->m_pGNext = m_pHead;
+		m_pHead->m_pGPrev->m_pGNext = pNewLine;
+		m_pHead->m_pGPrev = pNewLine;
+		pNewLine->m_Color = Color;
+		strcpy(pNewLine->m_Text, pText);
+		m_nElements++;
+		return pNewLine;
+	}
+	
 };
+
+
 
 class CConsole
 {
@@ -77,11 +96,22 @@ public:
 	
 	CConTextList	m_TextLines;
 	DWORD			m_nTextLines;
+
+
+
+
+
+	void ProcessCommand();
 };
 
 extern BOOL g_bDrawConsole;
 extern CConsole* g_pConsole;
 extern DWORD* g_pnConTextColor;
+
+extern std::vector<std::string> m_szPrevCommands;
+extern int m_nPrevCommandIndex;
+extern std::string m_szCommand;
+extern UINT32 m_nCursorPositionTimer;
 
 void Console_Init();
 void Console_Term();

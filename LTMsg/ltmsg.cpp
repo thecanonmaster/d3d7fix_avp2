@@ -194,7 +194,7 @@ void ReadConfig(char* szFilename, char* szExtFilename, char* szProfile)
 				if (!GetSectionString(szSection, szWorldKey, szWorldValue))
 					break;
 
-				strupr(szWorldValue);
+				_strupr(szWorldValue);
 				TWMDetailTex_WorldList_Add(szWorldValue);
 				i++;
 			}
@@ -231,7 +231,7 @@ void ReadConfig(char* szFilename, char* szExtFilename, char* szProfile)
 				if (!GetSectionString(szSection, szFilenameKey, szFilenameValue))
 					break;
 
-				strupr(szFilenameValue);
+				_strupr(szFilenameValue);
 				SolidDrawingWhitelist_Add(szFilenameValue);
 				i++;
 			}
@@ -414,7 +414,7 @@ DWORD MyDeleteSurface(DWORD hSurface)
 
 FontString* g_pPrevFontString = NULL;
 FSLines g_MultiLines;
-FSLines::iterator g_MultiLinesIter = NULL;
+FSLines::iterator g_MultiLinesIter;
 
 void ClearMultiLinesHolder()
 {
@@ -447,7 +447,7 @@ DWORD MyDrawSurfaceSolidColor(DWORD hDest, DWORD hSrc, LTRect *pSrcRect, int des
 			if (g_MultiLines.size())
 			{
 				//int nSize = g_MultiLines.size();
-				if (g_MultiLinesIter == NULL)
+				if (g_MultiLinesIter._Ptr == NULL)
 				{
 					dwRet = g_pLTClient->DrawSurfaceToSurfaceTransparent(hDest, hSrc, pSrcRect, destX, destY, hTransColor);	
 					g_MultiLinesIter = g_MultiLines.begin();
@@ -461,7 +461,7 @@ DWORD MyDrawSurfaceSolidColor(DWORD hDest, DWORD hSrc, LTRect *pSrcRect, int des
 				
 				if (g_MultiLinesIter == g_MultiLines.end())
 				{
-					g_MultiLinesIter = NULL;
+					g_MultiLinesIter._Ptr = NULL;
 					g_MultiLines.clear();
 				}
 			}
@@ -590,7 +590,7 @@ void MyDrawStringToSurface(DWORD hDest, DWORD hFont, DWORD hString, LTRect* pRec
 		//OldDrawStringToSurface(g_pPrevFontString->m_hSurface, hFont, hString, pRect, hForeColor, hBackColor);	
 		if (std::find(g_MultiLines.begin(), g_MultiLines.end(), pString) == g_MultiLines.end())
 		{
-			g_MultiLinesIter = NULL;
+			g_MultiLinesIter._Ptr = NULL;
 			g_MultiLines.push_back(pString);
 		}
 
@@ -787,7 +787,7 @@ void DrawIntroductionF15()
 void DrawFrameRate()
 {
 	char szBuffer[64];
-	itoa(g_nLastFrameRate, szBuffer, 10);
+	_itoa(g_nLastFrameRate, szBuffer, 10);
 
 	DWORD hFontColor = 0x0000FF00;
 	if (g_nLastFrameRate < FRAME_RATE_LEVEL_RED)
@@ -835,7 +835,7 @@ void DrawFrameRateOld()
 	DWORD hScreen = g_pLTClient->GetScreenSurface();
 
 	char szBuffer[64];
-	itoa(g_nLastFrameRate, szBuffer, 10);
+	_itoa(g_nLastFrameRate, szBuffer, 10);
 
 	int nLength = strlen(szBuffer);
 	LTRect rcDest;

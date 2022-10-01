@@ -85,10 +85,42 @@ WindowProc_type_ptr OldWindowProc;
 #define WM_INPUT						0x00FF
 #endif
 
+static int scan2ascii(DWORD scancode, USHORT* result)
+{
+	static HKL layout = GetKeyboardLayout(0);
+	static UINT8 State[256];
+
+	if (GetKeyboardState(State) == FALSE)
+		return 0;
+	UINT vk = MapVirtualKeyEx(scancode, 1, layout);
+	return ToAsciiEx(vk, scancode, State, result, 0, layout);
+}
+
 LRESULT CALLBACK NewWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+	USHORT szKey;
+	int inOutBufLenCharacters = 0;
+	// get the keyboard state
+	BYTE keyState[256];
+	GetKeyboardState(keyState);
+	// clear all of the modifier keys so ToUnicode will ignore them
+	keyState[VK_CONTROL] = keyState[VK_SHIFT] = keyState[VK_MENU] = 0;
+	keyState[VK_LCONTROL] = keyState[VK_LSHIFT] = keyState[VK_LMENU] = 0;
+	keyState[VK_RCONTROL] = keyState[VK_RSHIFT] = keyState[VK_RMENU] = 0;
+	// convert the WM_KEYDOWN/WM_KEYUP/WM_SYSKEYDOWN/WM_SYSKEYUP to characters
+	UINT scanCode = (lParam >> 16) & 0xFF;
+
+	char asciiCode[6];
+	scan2ascii(scanCode, (USHORT*)asciiCode);
+	
+	//char buff[256];
+	//sprintf (buff, "WM_KEYDOWN: %d\n", asciiCode[0]);
+	//OutputDebugStringA(buff);
+	
 	if (g_bWindowed && uMsg == WM_KEYDOWN && wParam == VK_PRIOR /*0x91*/)
 	{
+		
 		LONG lResult = GetWindowLong(g_hWindowHandle, GWL_STYLE);
 		if (lResult & WS_CAPTION)
 		{
@@ -110,18 +142,99 @@ LRESULT CALLBACK NewWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		SetWindowPos(g_hWindowHandle, HWND_TOPMOST, nHalfScreenResX - nHalfWinResX, nHalfScreenResY - nHalfWinResY, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 		SetWindowPos(g_hWindowHandle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 	}
+	
+	bool bHandled = false;
 
+	LPSTR g_szLastKey = 0;
+	WideCharToMultiByte(CP_ACP, 0, (LPCWCH)wParam, -1, g_szLastKey, 2, NULL, NULL);
+	
 	if (uMsg == WM_KEYDOWN)
 	{
+		
 		if (wParam == VK_NEXT)
 		{
 			g_eDrawFPS = (eFpsCounterPos)(g_eDrawFPS + 1);
 			if (g_eDrawFPS == FCP_MAX)
 				g_eDrawFPS = FCP_LEFT_BOTTOM;
 		}
-
-		if (GetCurrProfileBool(PO_ENABLE_CONSOLE) && wParam == 0xC0)
+		
+		if (GetCurrProfileBool(PO_ENABLE_CONSOLE) && wParam == VK_OEM_3 && !bHandled)
+		{
 			g_bDrawConsole = !g_bDrawConsole;
+			bHandled = true;
+		}
+		
+		if (g_bDrawConsole && wParam == VK_RETURN && !bHandled)
+		{
+			bHandled = true;
+			g_pConsole->ProcessCommand();
+			
+
+			
+		}
+		
+		if(g_bDrawConsole && !bHandled && (wParam == VK_TAB || wParam == VK_ESCAPE || wParam == VK_CAPITAL || wParam == VK_LCONTROL || wParam == VK_RCONTROL || wParam == VK_LEFT || wParam ==VK_RIGHT || wParam == VK_F1 || wParam == VK_F2 ))
+			{
+			bHandled = true;
+		}
+
+		if (g_bDrawConsole && wParam == VK_BACK && !bHandled)
+		{
+			//check if we can pop_back
+			if (m_szCommand.size() > 0)
+			{
+				m_szCommand.pop_back();
+			}
+			bHandled = true;			
+		}
+
+		if (g_bDrawConsole && wParam == VK_UP && !bHandled)
+		{
+			//retrieve last command
+			if (m_szPrevCommands.size() > 0)
+			{
+				m_szCommand = m_szPrevCommands[m_nPrevCommandIndex];
+				
+				//check if we can go back
+				if (m_nPrevCommandIndex > 0)
+					m_nPrevCommandIndex--;
+				
+				bHandled = true;
+			}
+		}
+		
+		if (g_bDrawConsole && wParam == VK_DOWN && !bHandled)
+		{
+			//retrieve last command
+			if (m_szPrevCommands.size() > 0)
+			{
+				m_szCommand = m_szPrevCommands[m_nPrevCommandIndex];
+				
+				//check if we can go back
+				if (m_nPrevCommandIndex < m_szPrevCommands.size() - 1)
+					m_nPrevCommandIndex++;
+				
+				bHandled = true;
+			}
+		}
+	}
+	
+	if (uMsg == WM_KEYDOWN)
+	{
+		
+		if (g_bDrawConsole && !bHandled)
+		{
+			
+			if (scanCode != 0x2a)
+			{
+				if (scanCode != 0x36)
+				{
+					m_szCommand += asciiCode[0];
+
+					bHandled = true;
+				}
+			}
+		}
 	}
 
 	if (GetCurrProfileFlag(PO_RAW_MOUSE_INPUT) && uMsg == WM_INPUT)
@@ -137,6 +250,7 @@ LRESULT CALLBACK NewWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 	{
 		return OldWindowProc(hwnd, uMsg, wParam, lParam);
 	}
+
 }
 
 FakeIDDraw7::FakeIDDraw7(LPDIRECTDRAW7 pOriginal)

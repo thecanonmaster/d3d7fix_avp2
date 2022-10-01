@@ -1,3 +1,5 @@
+#include <vector>
+
 enum eProfileOptionType
 {
 	POT_BYTE = 0,
@@ -408,7 +410,7 @@ public:
 typedef std::list<SolidSurface*> SolidSurfaceList;*/
 
 struct FontString;
-typedef std::list<FontString*> FSLines;
+typedef std::vector<FontString*> FSLines;
 
 struct FontString
 {
