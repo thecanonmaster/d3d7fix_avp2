@@ -190,9 +190,6 @@ void CConsole::ProcessCommand()
 	m_szPrevCommands.push_back(m_szCommand);
 	m_nPrevCommandIndex = m_szPrevCommands.size() - 1;
 
-	//remove commands more than 50
-	if (m_szPrevCommands.size() > 4)
-		m_szPrevCommands.erase(m_szPrevCommands.begin());
 	
 
 	if (szCommand.find("wireframe") != std::string::npos)
