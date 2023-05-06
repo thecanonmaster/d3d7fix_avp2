@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 
 typedef HRESULT (WINAPI* DirectDrawCreate_Type)(GUID FAR *, LPDIRECTDRAW FAR *, IUnknown FAR *);
-typedef HRESULT (WINAPI* DirectDrawCreateEx_Type)( GUID FAR *, LPVOID *, REFIID,IUnknown FAR *);
+typedef HRESULT (WINAPI* DirectDrawCreateEx_Type)(GUID FAR *, LPVOID *, REFIID, IUnknown FAR *);
 HMODULE WINAPI MyLoadLibraryA(LPCSTR lpFileName);
 
 void HookEngineStuff1();
@@ -32,6 +32,10 @@ void GetD3D7FixVersion(char* szBuffer, BOOL bFullInfo)
 
 void ReadConfigDS(char* szFilename, char* szExtFilename)
 {
+	char szFixVersion[64];
+	sprintf(szFixVersion, "%g", APP_VERSION);
+	SetCurrProfileString(GEN_FIX_VERSION, szFixVersion);
+
 	char szSection[INI_SECTION_SIZE_DS];
 	strcpy(g_szProfile, PROFILE_DEDICATED_SERVER);
 	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_DEDICATED_SERVER, szSection, INI_SECTION_SIZE_DS, szFilename);
@@ -41,7 +45,13 @@ void ReadConfigDS(char* szFilename, char* szExtFilename)
 	SectionToCurrProfileFloat(szSection, PO_SERVER_FPS, 0.0f);
 	SectionToCurrProfileBool(szSection, EXT_BAN_MANAGER, FALSE);
 	SectionToCurrProfileFloat(szSection, EXT_MOTD_TIMER, 0.0f);
-	SectionToCurrProfileString(szSection, EXT_MOTD_STRING);
+	SectionToCurrProfileString(szSection, EXT_MOTD_STRING0);
+	SectionToCurrProfileString(szSection, EXT_MOTD_STRING1);
+	SectionToCurrProfileString(szSection, EXT_MOTD_STRING2);
+	SectionToCurrProfileString(szSection, EXT_MOTD_STRING3);
+	SectionToCurrProfileString(szSection, EXT_MOTD_STRING4);
+	SectionToCurrProfileString(szSection, EXT_CACHE_LIST);
+	SectionToCurrProfileString(szSection, EXT_CMD_LIST);
 
 	if (GetCurrProfileBool(EXT_BAN_MANAGER))
 	{
@@ -83,6 +93,10 @@ void ReadPreConfig(char* szFilename)
 
 void ReadConfig(char* szFilename, char* szExtFilename, char* szProfile)
 {
+	char szFixVersion[64];
+	sprintf(szFixVersion, "%g", APP_VERSION);
+	SetCurrProfileString(GEN_FIX_VERSION, szFixVersion);
+	
 	char szSection[INI_SECTION_SIZE];
 	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_GLOBAL, szSection, INI_SECTION_SIZE, szFilename);
 	SectionToCurrProfileBool(szSection, PO_DGVOODOO_MODE, FALSE);
@@ -118,7 +132,7 @@ void ReadConfig(char* szFilename, char* szExtFilename, char* szProfile)
 	float fFOVXScaler = GetSectionFloat(szSection, GetCurrProfileOption(PO_CAMERA_FOV_SCALER), 1.0f);
 
 	if (fFOVXScaler > 1.2f) fFOVXScaler = 1.2f;
-	if (fFOVXScaler < 0.8f)	fFOVXScaler = 0.8f;
+	else if (fFOVXScaler < 0.8f) fFOVXScaler = 0.8f;
 
 	SetCurrProfileFloat(PO_CAMERA_FOV_SCALER, fFOVXScaler);
 
@@ -244,7 +258,13 @@ void ReadConfig(char* szFilename, char* szExtFilename, char* szProfile)
 		szProfileEx = ILTCSBase_GetVarValueString(hProfileEx);
 	
 	if (szProfileEx)
-		ParseCVarProfile(szProfileEx);
+	{
+		if (!ParseCVarProfile(szProfileEx))
+		{
+			g_bCVarProfileIgnored = TRUE;
+			logf("WARNING! CVar profile is ignored (D3D7Fix version differs)");
+		}
+	}
 
 	LogCurrProfile();
 }
@@ -738,7 +758,10 @@ void DrawIntroduction()
 	DWORD hScreen = g_pLTClient->GetScreenSurface();
 
 	for (int i = 0; i < INTRODUCTION_LINES; i++)
-		g_pLTClient->DrawSurfaceToSurfaceTransparent(hScreen, g_hIntroductionSurface[i], NULL, 5, 5 + (i * INTRODUCTION_FONT_HEIGHT + 2), 0);
+	{
+		if (g_hIntroductionSurface[i])
+			g_pLTClient->DrawSurfaceToSurfaceTransparent(hScreen, g_hIntroductionSurface[i], NULL, 5, 5 + (i * INTRODUCTION_FONT_HEIGHT + 2), 0);
+	}
 
 	if (!bConsoleIntroDrawn)
 	{
@@ -770,11 +793,12 @@ void DrawIntroductionF15()
 	szIntro[3] = szPostprocess;
 	szIntro[4] = "Page Up - borderless window toggle";
 	szIntro[5] = "Page Down - FPS counter mode";
+
 	
 #ifdef _DEBUG
-	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x006666FF, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF };
+	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x006666FF, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF, 0x00FF0000 };
 #else	
-	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x0000FF00, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF };
+	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x0000FF00, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF, 0x00FF0000 };
 #endif
 	
 	if (GetCurrProfileBool(PO_CLEAN_MODE)) 
@@ -1081,10 +1105,16 @@ void __fastcall MyIServerShell_Update(void* pShell, float timeElapsed)
 		if (fTime - g_fLastMOTDTime > fMOTDTimer)
 		{
 			g_fLastMOTDTime = fTime;
-			char* szMOTD = GetCurrProfileString(EXT_MOTD_STRING);
-			
-			ILTCSBase_CPrint(g_pLTServer, "[EXT] MOTD: %s", szMOTD);
-			SendMessageFromServerApp(szMOTD);
+				
+			for (int i = 0; i < 5; i++)
+			{
+				char* szMOTD = GetCurrProfileString((eProfileOption)(EXT_MOTD_STRING0 + i));
+				if (szMOTD[0])
+				{
+					ILTCSBase_CPrint(g_pLTServer, "[EXT] MOTD%d: %s", i, szMOTD);
+					SendMessageFromServerApp(szMOTD);
+				}
+			}
 		}
 	}
 	
@@ -1214,10 +1244,46 @@ void __fastcall MyIServerShell_OnClientExitWorld(void* pShell, void* notUsed, DW
 	IServerShell_OnClientExitWorld(pShell, notUsed, hClient);
 }
 
+void ReadAndApplyExtraCmdList()
+{
+	FILE* pFile = fopen(GetCurrProfileString(EXT_CMD_LIST), "rb");
+	fseek(pFile, 0, SEEK_END);
+	
+	int nSize = ftell(pFile);
+	rewind(pFile);
+	
+	char* szBuffer = new char[nSize + 1];
+	fread(szBuffer, 1, nSize, pFile);
+	szBuffer[nSize] = '\r';
+	
+	int i = 0;
+	int nStart = 0;
+	while (i < nSize)
+	{
+		if (szBuffer[i] == '\r')
+		{
+			szBuffer[i] = 0;
+			
+			g_pLTServer->RunGameConString(szBuffer + nStart);
+			
+			i += 2;
+			nStart = i;
+		}
+		else
+		{
+			i++;
+		}
+	}
+	
+	delete[] szBuffer;
+	fclose(pFile);
+}
+
 void __fastcall MyIServerShell_PostStartWorld(void* pShell)
 {
 	g_fLastMOTDTime = 0.0f;
 	g_bExtraCacheListApplied = FALSE;
+	ReadAndApplyExtraCmdList();
 	InGameIPList_Free();
 
 	IServerShell_PostStartWorld(pShell);
@@ -1725,6 +1791,48 @@ void ApplyTimeCalibrationDS_Fix()
 	fServerFPS = GetCurrProfileFloat(PO_SERVER_FPS);
 }
 
+void ReadAndApplyExtraCacheList()
+{
+	FILE* pFile = fopen(GetCurrProfileString(EXT_CACHE_LIST), "rb");
+	fseek(pFile, 0, SEEK_END);
+	
+	int nSize = ftell(pFile);
+	rewind(pFile);
+	
+	char* szBuffer = new char[nSize + 1];
+	fread(szBuffer, 1, nSize, pFile);
+	szBuffer[nSize] = '\r';
+	
+	int i = 0;
+	int nStart = 0;
+	while (i < nSize)
+	{
+		if (szBuffer[i] == '\r')
+		{
+			szBuffer[i] = 0;
+			
+			DWORD dwType;
+			char* szFilename = ParseCacheString(szBuffer + nStart, dwType);
+			if (dwType != FT_ERROR)
+			{
+				
+				if (g_pLTServer->CacheFile(dwType, szFilename))
+					logf("Fail to cache '%s' [%d]", szFilename, dwType);
+			}
+			
+			i += 2;
+			nStart = i;
+		}
+		else
+		{
+			i++;
+		}
+	}
+	
+	delete[] szBuffer;
+	fclose(pFile);
+}
+
 DWORD (*OldGetServerFlags)();
 DWORD MyGetServerFlags()
 {
@@ -1732,41 +1840,7 @@ DWORD MyGetServerFlags()
 	if (!g_bExtraCacheListApplied && (dwRet & SS_CACHING))
 	{
 		g_bExtraCacheListApplied = TRUE;
-		
-		FILE* pFile = fopen(GetCurrProfileString(EXT_CACHE_LIST), "rb");
-		fseek(pFile, 0, SEEK_END);
-
-		int nSize = ftell(pFile);
-		rewind(pFile);
-
-		char* szBuffer = new char[nSize + 1];
-		fread(szBuffer, 1, nSize, pFile);
-		szBuffer[nSize] = '\r';
-
-		int i = 0;
-		int nStart = 0;
-		while (i < nSize)
-		{
-			if (szBuffer[i] == '\r')
-			{
-				szBuffer[i] = 0;
-				
-				DWORD dwType;
-				char* szFilename = ParseCacheString(szBuffer + nStart, dwType);
-				if (dwType != FT_ERROR)
-					g_pLTServer->CacheFile(dwType, szFilename);
-
-				i += 2;
-				nStart = i;
-			}
-			else
-			{
-				i++;
-			}
-		}
-		
-		delete[] szBuffer;
-		fclose(pFile);
+		ReadAndApplyExtraCacheList();
 	}
 
 	return dwRet;	

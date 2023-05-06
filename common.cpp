@@ -22,6 +22,7 @@ float g_fLastFontListUpdate = 0.0f;
 BOOL g_bInTWMDetailTex_WorldList = FALSE;
 WorldList g_TWMDetailTex_WorldList;
 SDWList g_SolidDrawingWhitelist;
+BOOL g_bCVarProfileIgnored = FALSE;
 
 LONG g_lRMILastX = 0;
 LONG g_lRMILastY = 0;
@@ -29,6 +30,7 @@ LONG g_lRMILastY = 0;
 
 ProfileOption g_ProfileOptions[PO_MAX] = 
 {
+	ProfileOption(POT_STRING, "FixVersion"),
 	ProfileOption(POT_BYTE, "DgVoodooMode"),
 	ProfileOption(POT_STRING, "DefaultProfile"),
 	ProfileOption(POT_FLOAT, "IntroductionTime"),
@@ -73,8 +75,13 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_DWORD, "PP_IntensityVisionMode"),
 	ProfileOption(POT_BYTE, "Ext_BanManager"),
 	ProfileOption(POT_FLOAT, "Ext_MOTDTimer"),
-	ProfileOption(POT_STRING, "Ext_MOTDString"),
+	ProfileOption(POT_STRING, "Ext_MOTDString0"),
+	ProfileOption(POT_STRING, "Ext_MOTDString1"),
+	ProfileOption(POT_STRING, "Ext_MOTDString2"),
+	ProfileOption(POT_STRING, "Ext_MOTDString3"),
+	ProfileOption(POT_STRING, "Ext_MOTDString4"),
 	ProfileOption(POT_STRING, "Ext_CacheList"),
+	ProfileOption(POT_STRING, "Ext_CmdList"),
 };
 
 FontList g_FontList;
@@ -521,6 +528,7 @@ void CreateIntroductionSurface()
 	szIntro[3] = szPostprocess;
 	szIntro[4] = "Page Up - borderless window toggle";
 	szIntro[5] = "Page Down - FPS counter mode";
+	szIntro[6] = !g_bCVarProfileIgnored ? "WARNING! CVar profile is ignored (D3D7Fix version differs)" : NULL;
 
 #ifdef _DEBUG
 	DWORD dwColorMap[INTRODUCTION_LINES] = { 0x006666FF, 0x00FFFF00, 0x00FFFF00, 0x00FF8800, 0x00FFFFFF, 0x00FFFFFF };
@@ -535,9 +543,12 @@ void CreateIntroductionSurface()
 	
 	for (int i = 0; i < INTRODUCTION_LINES; i++)
 	{
-		DWORD hString = ILTCSBase_CreateString(szIntro[i]);
-		g_hIntroductionSurface[i] = g_pLTClient->CreateSurfaceFromString(hFont, hString, dwColorMap[i], 0, 0, 0);
-		ILTCSBase_FreeString(hString);
+		if (szIntro[i])
+		{
+			DWORD hString = ILTCSBase_CreateString(szIntro[i]);
+			g_hIntroductionSurface[i] = g_pLTClient->CreateSurfaceFromString(hFont, hString, dwColorMap[i], 0, 0, 0);
+			ILTCSBase_FreeString(hString);
+		}
 	}
 
 	g_pLTClient->DeleteFont(hFont);
@@ -698,8 +709,11 @@ void SectionToCurrProfileString(char* szSection, eProfileOption eOption, char* s
 		strcpy(g_ProfileOptions[eOption].szValue, szDefault);
 }
 
-void ParseCVarProfile(char* szData)
+BOOL ParseCVarProfile(char* szData)
 {
+	ProfileOption aTempProfileOptions[PO_MAX];
+	memcpy(aTempProfileOptions, g_ProfileOptions, sizeof(ProfileOption) * PO_MAX);
+	
 	char szBuffer[16];
 	int nLength = strlen(szData);
 
@@ -773,6 +787,16 @@ void ParseCVarProfile(char* szData)
 	}
 
 	// if (n > 0xffffff) n |= 0xff000000;
+
+	char* szVersion = GetCurrProfileString(GEN_FIX_VERSION);
+	char* szExpectedVersion = aTempProfileOptions[GEN_FIX_VERSION].GetString();
+	if (!strcmp(szVersion, szExpectedVersion))
+	{
+		memcpy(g_ProfileOptions, aTempProfileOptions, sizeof(ProfileOption) * PO_MAX);
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 char* ParseCacheString(char* szString, DWORD& dwType)

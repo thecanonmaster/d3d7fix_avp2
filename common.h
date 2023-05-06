@@ -9,8 +9,9 @@ enum eProfileOptionType
 
 enum eProfileOption
 {
-	PO_DGVOODOO_MODE = 0,
-	PO_DEFAULT_PROFILE = 1,
+	GEN_FIX_VERSION = 0,
+	PO_DGVOODOO_MODE = 1,
+	PO_DEFAULT_PROFILE,
 	PO_INTRODUCTION_TIME,
 	PO_RENDER_DLL,
 	PO_RENDER_WRAPPER_DLL,
@@ -53,8 +54,13 @@ enum eProfileOption
 	PO_POSTPROCESS_INTENSITY_VM,
 	EXT_BAN_MANAGER,
 	EXT_MOTD_TIMER,
-	EXT_MOTD_STRING,
+	EXT_MOTD_STRING0,
+	EXT_MOTD_STRING1,
+	EXT_MOTD_STRING2,
+	EXT_MOTD_STRING3,
+	EXT_MOTD_STRING4,
 	EXT_CACHE_LIST,
+	EXT_CMD_LIST,
 	PO_MAX,
 };
 
@@ -70,6 +76,11 @@ enum eFpsCounterPos
 
 struct ProfileOption
 {
+	ProfileOption()
+	{
+		memset(this, 0, sizeof(ProfileOption));
+	}
+
 	ProfileOption(eProfileOptionType eOptionType, char* szOptionName)
 	{
 		Init(eOptionType, szOptionName);		
@@ -148,6 +159,7 @@ extern HWND g_hWindowHandle;
 extern BOOL g_bWindowHooked;
 extern float g_fLastFontListUpdate;
 extern BOOL g_bInTWMDetailTex_WorldList;
+extern BOOL g_bCVarProfileIgnored;
 
 extern LONG g_lRMILastX;
 extern LONG g_lRMILastY;
@@ -216,7 +228,7 @@ extern int g_nLastFrameRate;
 
 #define INTRODUCTION_FONT_HEIGHT	18
 #define INTRODUCTION_FONT_WIDTH		10
-#define INTRODUCTION_LINES			6
+#define INTRODUCTION_LINES			7
 
 #define FRAME_RATE_FONT_SCALE	2
 #define FRAME_RATE_UPDATE_TIME	0.2f
@@ -740,6 +752,12 @@ public:
 	void			(*SetClientUserData)(DWORD hClient, void *pData);
 	void*			(*GetClientUserData)(DWORD hClient);	
 	void			(*KickClient)(DWORD hClient);
+
+	DWORD			(*SetClientViewPos)(DWORD hClient, LTVector *pPos);
+
+	void			(*RunGameConString)(char *pString);	
+	void			(*SetGameConVar)(char *pName, char *pVal);
+	DWORD			(*GetGameConVar)(char *pName);
 };
 
 extern ILTServer* g_pLTServer;
@@ -927,7 +945,7 @@ BOOL GetCurrProfileBool(eProfileOption eOption);
 BOOL GetCurrProfileFlag(eProfileOption eOption);
 float GetCurrProfileFloat(eProfileOption eOption);
 char* GetCurrProfileString(eProfileOption eOption);
-void ParseCVarProfile(char* szData);
+BOOL ParseCVarProfile(char* szData);
 void LogCurrProfile();
 char* ParseCacheString(char* szString, DWORD& dwType);
 
