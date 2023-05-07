@@ -1283,7 +1283,10 @@ void __fastcall MyIServerShell_PostStartWorld(void* pShell)
 {
 	g_fLastMOTDTime = 0.0f;
 	g_bExtraCacheListApplied = FALSE;
-	ReadAndApplyExtraCmdList();
+	
+	if (GetCurrProfileString(EXT_CMD_LIST)[0])
+		ReadAndApplyExtraCmdList();
+	
 	InGameIPList_Free();
 
 	IServerShell_PostStartWorld(pShell);
