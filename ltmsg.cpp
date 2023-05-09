@@ -9,9 +9,13 @@ void HookEngineStuff1();
 #ifndef PRIMAL_HUNT_BUILD
 
 void HookDSStuff1();
+void ApplyFastCRCCheckDS_Fix();
 void ApplyTimeCalibrationDS_Fix();
 void ApplyExtraCacheListDS_Fix();
 void ApplyUpdateProgDamageCrash_Fix();
+
+DWORD __stdcall SharedCommonLT_GetCRC_Test1(ILTStream* pStream, DWORD& dwCRC32);
+DWORD __stdcall SharedCommonLT_GetCRC_Srv(ILTStream* pStream, DWORD& dwCRC32);
 
 #endif
 
@@ -41,6 +45,7 @@ void ReadConfigDS(char* szFilename, char* szExtFilename)
 	DWORD dwSectionSize = GetPrivateProfileSection(PROFILE_DEDICATED_SERVER, szSection, INI_SECTION_SIZE_DS, szFilename);
 
 	SectionToCurrProfileDWord(szSection, PO_UPD_PROG_DMG_OBJECT_LTO, 0);
+	SectionToCurrProfileBool(szSection, PO_FAST_CRC_CHECK, FALSE);
 	SectionToCurrProfileBool(szSection, PO_TIME_CALIBRATION, FALSE);
 	SectionToCurrProfileFloat(szSection, PO_SERVER_FPS, 0.0f);
 	SectionToCurrProfileBool(szSection, EXT_BAN_MANAGER, FALSE);
@@ -1283,10 +1288,10 @@ void __fastcall MyIServerShell_PostStartWorld(void* pShell)
 {
 	g_fLastMOTDTime = 0.0f;
 	g_bExtraCacheListApplied = FALSE;
-	
+
 	if (GetCurrProfileString(EXT_CMD_LIST)[0])
 		ReadAndApplyExtraCmdList();
-	
+
 	InGameIPList_Free();
 
 	IServerShell_PostStartWorld(pShell);
@@ -1320,6 +1325,11 @@ typedef DWORD (*LoadServerBinaries_type)(CClassMgr *pClassMgr);
 DWORD (*LoadServerBinaries)(CClassMgr *pClassMgr);
 DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 {
+	ReadConfigDS(INI_FILENAME, INI_FILENAME_EXT);
+
+	if (GetCurrProfileBool(PO_FAST_CRC_CHECK))
+		ApplyFastCRCCheckDS_Fix();
+
 	DWORD dwResult = LoadServerBinaries(pClassMgr);
 
 	DWORD dwRead;
@@ -1334,9 +1344,8 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	ILTCSBase_GetTime = (ILTCSBase_GetTime_type)pOrigTable[V_CSBASE_GET_TIME]; // 53
 	ILTCSBase_GetFrameTime = (ILTCSBase_GetFrameTime_type)pOrigTable[V_CSBASE_GET_FRAME_TIME]; // 54
 
-	ILTServer_GetClientData = (ILTServer_GetClientData_type)pOrigTable[V_SERVER_GET_CLIENT_DATA]; // 124
+	ILTServer_GetClientData = (ILTServer_GetClientData_type)pOrigTable[V_SERVER_GET_CLIENT_DATA]; // 124	
 
-	ReadConfigDS(INI_FILENAME, INI_FILENAME_EXT);
 	
 	if (GetCurrProfileBool(PO_TIME_CALIBRATION))
 		ApplyTimeCalibrationDS_Fix();
@@ -1764,6 +1773,17 @@ void ApplyTimeCalibration_Fix()
 }
 
 #ifndef PRIMAL_HUNT_BUILD
+
+void ApplyFastCRCCheckDS_Fix()
+{
+	logf("Applying DS fast CRC32 check fix");
+	
+	DWORD dwOld;
+	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
+	
+	EngineHack_WriteFunction((LPVOID)(dwDllAddress + ADDR_DS_GET_CRC_TEST1_TABLE), (DWORD)SharedCommonLT_GetCRC_Test1, dwOld);
+	EngineHack_WriteFunction((LPVOID)(dwDllAddress + ADDR_DS_GET_CRC_SRV_TABLE), (DWORD)SharedCommonLT_GetCRC_Srv, dwOld);
+}
 
 void ApplyUpdateProgDamageCrash_Fix()
 {
