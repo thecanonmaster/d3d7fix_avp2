@@ -1,4 +1,8 @@
 #include "StdAfx.h"
+//#define APPLY_CUSTOM_EXTRAS
+#ifdef APPLY_CUSTOM_EXTRAS
+#include "CustomExtras.h"
+#endif
 
 typedef HRESULT (WINAPI* DirectDrawCreate_Type)(GUID FAR *, LPDIRECTDRAW FAR *, IUnknown FAR *);
 typedef HRESULT (WINAPI* DirectDrawCreateEx_Type)(GUID FAR *, LPVOID *, REFIID, IUnknown FAR *);
@@ -35,7 +39,7 @@ void GetD3D7FixVersion(char* szBuffer, BOOL bFullInfo)
 #ifndef PRIMAL_HUNT_BUILD
 
 void ReadConfigDS(char* szFilename, char* szExtFilename)
-{
+{	
 	char szFixVersion[64];
 	sprintf(szFixVersion, "%g", APP_VERSION);
 	SetCurrProfileString(GEN_FIX_VERSION, szFixVersion);
@@ -57,6 +61,14 @@ void ReadConfigDS(char* szFilename, char* szExtFilename)
 	SectionToCurrProfileString(szSection, EXT_MOTD_STRING4);
 	SectionToCurrProfileString(szSection, EXT_CACHE_LIST);
 	SectionToCurrProfileString(szSection, EXT_CMD_LIST);
+	SectionToCurrProfileDWord(szSection, EXT_ON_INFO_QUERY, 0);
+	SectionToCurrProfileDWord(szSection, EXT_SEND_RESPONSE_INFO, 0);
+	SectionToCurrProfileString(szSection, EXT_GS_RESPONSE_KEY0);
+	SectionToCurrProfileString(szSection, EXT_GS_RESPONSE_KEY1);
+	SectionToCurrProfileString(szSection, EXT_GS_RESPONSE_KEY2);
+	SectionToCurrProfileString(szSection, EXT_GS_RESPONSE_VALUE0);
+	SectionToCurrProfileString(szSection, EXT_GS_RESPONSE_VALUE1);
+	SectionToCurrProfileString(szSection, EXT_GS_RESPONSE_VALUE2);
 
 	if (GetCurrProfileBool(EXT_BAN_MANAGER))
 	{
@@ -1294,6 +1306,10 @@ void __fastcall MyIServerShell_PostStartWorld(void* pShell)
 
 	InGameIPList_Free();
 
+#ifdef APPLY_CUSTOM_EXTRAS
+	DSCustomExtras_PostStartWorld();
+#endif
+
 	IServerShell_PostStartWorld(pShell);
 }
 
@@ -1320,6 +1336,37 @@ void* My_packet_Get(void* a1, WORD a2, WORD a3)
 
 	return packet_Get(a1, a2, a3);
 }*/
+
+typedef void (__fastcall *MultiplaterMgr_SendResponseInfo_type)(void* pMPMgr, void* notUsed, char* sKey, char* sValue);
+void (__fastcall *MultiplaterMgr_SendResponseInfo)(void* pMPMgr, void* notUsed, char* sKey, char* sValue);
+typedef DWORD (__fastcall *MultiplaterMgr_OnInfoQuery_type)(void* pMPMgr);
+DWORD (__fastcall *MultiplaterMgr_OnInfoQuery)(void* pMPMgr);
+DWORD __fastcall MyMultiplaterMgr_OnInfoQuery(void* pMPMgr)
+{
+	for (int i = 0; i < 3; i++)
+	{
+		char* szKey = GetCurrProfileString((eProfileOption)(EXT_GS_RESPONSE_KEY0 + i));
+		if (szKey[0])
+		{
+			char* szValue = GetCurrProfileString((eProfileOption)(EXT_GS_RESPONSE_VALUE0 + i));
+			MultiplaterMgr_SendResponseInfo(pMPMgr, NULL, szKey, szValue);
+		}
+	}
+	
+	return MultiplaterMgr_OnInfoQuery(pMPMgr);
+}
+
+void ApplyGSResponse_Ext()
+{
+	logf("Applying GS response extension");
+	
+	DWORD dwOld;
+	DWORD dwDllAddress = (DWORD)g_pClassMgr->m_pClassMgr->m_pShellModule->m_pModule->m_hInstance;
+	
+	EngineHack_WriteFunction((LPVOID)(dwDllAddress + GetCurrProfileDWord(EXT_ON_INFO_QUERY)), (DWORD)MyMultiplaterMgr_OnInfoQuery, dwOld);
+	MultiplaterMgr_OnInfoQuery = (MultiplaterMgr_OnInfoQuery_type) dwOld;
+	MultiplaterMgr_SendResponseInfo = (MultiplaterMgr_SendResponseInfo_type)(dwDllAddress + GetCurrProfileDWord(EXT_SEND_RESPONSE_INFO));
+}
 
 typedef DWORD (*LoadServerBinaries_type)(CClassMgr *pClassMgr);
 DWORD (*LoadServerBinaries)(CClassMgr *pClassMgr);
@@ -1355,6 +1402,13 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 
 	if (GetCurrProfileDWord(PO_UPD_PROG_DMG_OBJECT_LTO))
 		ApplyUpdateProgDamageCrash_Fix();
+
+	if (GetCurrProfileDWord(EXT_ON_INFO_QUERY))
+		ApplyGSResponse_Ext();
+
+#ifdef APPLY_CUSTOM_EXTRAS
+	DSCustomExtras_Init();
+#endif
 
 	pOrigTable = (DWORD*)*(DWORD*)g_pServerMgr->m_pServerMgr->m_pServerShell;	
 	IServerShell_Update = (IServerShell_Update_type)pOrigTable[V_SSHELL_UPDATE]; // 15

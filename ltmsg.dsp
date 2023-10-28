@@ -58,8 +58,8 @@ LINK32=link.exe
 InputPath=.\Release\ltmsg.dll
 SOURCE="$(InputPath)"
 
-"E:\Games\AVP2\ltmsg.dll" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	copy $(InputPath) "E:\Games\AVP2\ltmsg.dll"
+"C:\Games\AVP2\PaybackTimeServer\ltmsg.dll" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	copy $(InputPath) "C:\Games\AVP2\PaybackTimeServer\ltmsg.dll"
 
 # End Custom Build
 
@@ -92,8 +92,8 @@ LINK32=link.exe
 InputPath=.\Debug\ltmsg.dll
 SOURCE="$(InputPath)"
 
-"E:\Games\AVP2\_RELEASE_SERVER_R2\ltmsg.dll" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	copy $(InputPath) "E:\Games\AVP2\_RELEASE_SERVER_R2\ltmsg.dll"
+"C:\Games\AVP2\PaybackTimeServer\ltmsg.dll" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	copy $(InputPath) "C:\Games\AVP2\PaybackTimeServer\ltmsg.dll"
 
 # End Custom Build
 
@@ -121,6 +121,10 @@ SOURCE=.\Console.cpp
 # Begin Source File
 
 SOURCE=.\crc32.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\CustomExtras.cpp
 # End Source File
 # Begin Source File
 
@@ -177,6 +181,10 @@ SOURCE=.\Console.h
 # Begin Source File
 
 SOURCE=.\crc32.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\CustomExtras.h
 # End Source File
 # Begin Source File
 

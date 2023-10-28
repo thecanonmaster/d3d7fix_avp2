@@ -61,6 +61,14 @@ enum eProfileOption
 	EXT_MOTD_STRING4,
 	EXT_CACHE_LIST,
 	EXT_CMD_LIST,
+	EXT_ON_INFO_QUERY,
+	EXT_SEND_RESPONSE_INFO,
+	EXT_GS_RESPONSE_KEY0,
+	EXT_GS_RESPONSE_KEY1,
+	EXT_GS_RESPONSE_KEY2,
+	EXT_GS_RESPONSE_VALUE0,
+	EXT_GS_RESPONSE_VALUE1,
+	EXT_GS_RESPONSE_VALUE2,
 	PO_MAX,
 };
 
@@ -183,7 +191,7 @@ extern int g_nLastFrameRate;
 
 #define ACTIVE_PROFILE	"Active profile = %s"
 #define APP_NAME_SHORT	"D3D7FIX v%g"
-#define APP_VERSION		0.32f
+#define APP_VERSION		0.33f
 #define CVAR_PROFILE	"D3D7FixProfile"
 #define CVAR_PROFILE_EX "D3D7FixProfileEx"
 
@@ -609,7 +617,7 @@ typedef void (__fastcall *IClientShell_Update_type)(void* pShell);
 typedef void (__fastcall *IServerShell_Update_type)(void* pShell, float timeElapsed);
 typedef void (__fastcall *IServerShell_VerifyClient_type)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 typedef void* (__fastcall *IServerShell_OnClientEnterWorld_type)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD clientDataLen);
-typedef void* (__fastcall *IServerShell_OnClientExitWorld_type)(void* pShell, void* notUsed, DWORD hClient);
+typedef void (__fastcall *IServerShell_OnClientExitWorld_type)(void* pShell, void* notUsed, DWORD hClient);
 typedef DWORD (__fastcall *IServerShell_ServerAppMessageFn_type)(void* pShell, void* notUsed, char *pMsg, int nLen);
 typedef void (__fastcall *IServerShell_PostStartWorld_type)(void* pShell);
 
@@ -627,7 +635,7 @@ extern void (__fastcall *IClientShell_Update)(void* pShell);
 extern void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
 extern void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 extern void* (__fastcall *IServerShell_OnClientEnterWorld)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD clientDataLen);
-extern void* (__fastcall *IServerShell_OnClientExitWorld)(void* pShell, void* notUsed, DWORD hClient);
+extern void (__fastcall *IServerShell_OnClientExitWorld)(void* pShell, void* notUsed, DWORD hClient);
 extern DWORD (__fastcall *IServerShell_ServerAppMessageFn)(void* pShell, void* notUsed, char *pMsg, int nLen);
 extern void (__fastcall *IServerShell_PostStartWorld)(void* pShell);
 
@@ -757,7 +765,12 @@ public:
 
 	void			(*RunGameConString)(char *pString);	
 	void			(*SetGameConVar)(char *pName, char *pVal);
-	DWORD			(*GetGameConVar)(char *pName);
+	DWORD			(*GetGameConVar)(char *pName); // 264
+
+	BYTE			m_Data1[120];
+
+	DWORD			(*GetObjectUserFlags)(DWORD hObj);
+	DWORD			(*SetObjectUserFlags)(DWORD hObj, DWORD dwFlags);
 };
 
 extern ILTServer* g_pLTServer;

@@ -82,6 +82,14 @@ ProfileOption g_ProfileOptions[PO_MAX] =
 	ProfileOption(POT_STRING, "Ext_MOTDString4"),
 	ProfileOption(POT_STRING, "Ext_CacheList"),
 	ProfileOption(POT_STRING, "Ext_CmdList"),
+	ProfileOption(POT_DWORD, "Ext_OnInfoQuery"),
+	ProfileOption(POT_DWORD, "Ext_SendResponseInfo"),
+	ProfileOption(POT_STRING, "Ext_GSResponseKey0"),
+	ProfileOption(POT_STRING, "Ext_GSResponseKey1"),
+	ProfileOption(POT_STRING, "Ext_GSResponseKey2"),
+	ProfileOption(POT_STRING, "Ext_GSResponseValue0"),
+	ProfileOption(POT_STRING, "Ext_GSResponseValue1"),
+	ProfileOption(POT_STRING, "Ext_GSResponseValue2"),
 };
 
 FontList g_FontList;
@@ -112,7 +120,7 @@ void (__fastcall *IClientShell_Update)(void* pShell);
 void (__fastcall *IServerShell_Update)(void* pShell, float timeElapsed);
 void (__fastcall *IServerShell_VerifyClient)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD &nVerifyCode);
 void* (__fastcall *IServerShell_OnClientEnterWorld)(void* pShell, void* notUsed, DWORD hClient, void *pClientData, DWORD clientDataLen);
-void* (__fastcall *IServerShell_OnClientExitWorld)(void* pShell, void* notUsed, DWORD hClient);
+void (__fastcall *IServerShell_OnClientExitWorld)(void* pShell, void* notUsed, DWORD hClient);
 DWORD (__fastcall *IServerShell_ServerAppMessageFn)(void* pShell, void* notUsed, char *pMsg, int nLen);
 void (__fastcall *IServerShell_PostStartWorld)(void* pShell);
 
@@ -786,12 +794,11 @@ BOOL ParseCVarProfile(char* szData)
 		}
 	}
 
-	// if (n > 0xffffff) n |= 0xff000000;
-
 	char* szVersion = GetCurrProfileString(GEN_FIX_VERSION);
 	char* szExpectedVersion = aTempProfileOptions[GEN_FIX_VERSION].GetString();
-	if (!strcmp(szVersion, szExpectedVersion))
+	if (strcmp(szVersion, szExpectedVersion))
 	{
+		logf("Version <> ExpectedVersion, %s <> %s", szVersion, szExpectedVersion);
 		memcpy(g_ProfileOptions, aTempProfileOptions, sizeof(ProfileOption) * PO_MAX);
 		return FALSE;
 	}
