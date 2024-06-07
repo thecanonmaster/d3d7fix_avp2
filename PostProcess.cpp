@@ -342,6 +342,6 @@ void PostProcState::Init(LPDIRECTDRAWSURFACE7 dds)
 		}
 		m_nMaps = i;
 		
-		logf("Postprocess maps count = %d, size = %d x %d", m_nMaps, m_dwBloomWidth[0], m_dwBloomHeight[0]);
+		LogPrintF("Postprocess maps count = %d, size = %d x %d", m_nMaps, m_dwBloomWidth[0], m_dwBloomHeight[0]);
 	} 
 }

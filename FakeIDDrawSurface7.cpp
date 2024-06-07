@@ -136,13 +136,13 @@ ULONG FakeIDDrawSurface7Prime::Release(void)
 	
 	if (dwCount == 0) 
 	{		
-		logf("FakeIDDrawSurface7::Release - release success");
+		LogPrintF("FakeIDDrawSurface7::Release - release success");
 		m_pIDDrawSurface = NULL;		
 		delete(this); 
 	}
 	else
 	{
-		logf("FakeIDDrawSurface7::Release - release failed, reference count = %d", dwCount);
+		LogPrintF("FakeIDDrawSurface7::Release - release failed, reference count = %d", dwCount);
 		m_pIDDrawSurface = NULL;		
 		delete(this); 
 	}

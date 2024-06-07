@@ -16,9 +16,9 @@ ULONG __stdcall FakeID3DDevice7_Release(LPDIRECT3DDEVICE7 device)
 	
 	ULONG dwCount = device->Release();
 	if (dwCount == 0) 
-		logf("FakeID3DDevice::Release - release success");
+		LogPrintF("FakeID3DDevice::Release - release success");
 	else
-		logf("FakeID3DDevice::Release - release failed, reference count = %d", dwCount);
+		LogPrintF("FakeID3DDevice::Release - release failed, reference count = %d", dwCount);
 	
 	return dwCount;
 }
@@ -57,13 +57,13 @@ ULONG FakeID3D7::Release(void)
 	
 	if (dwCount == 0) 
 	{
-		logf("FakeID3D7::Release - release success");
+		LogPrintF("FakeID3D7::Release - release success");
 		m_pID3D = NULL;		
 		delete(this); 
 	}
 	else
 	{
-		logf("FakeID3D7::Release - release failed, reference count = %d", dwCount);
+		LogPrintF("FakeID3D7::Release - release failed, reference count = %d", dwCount);
 		m_pID3D = NULL;		
 		delete(this); 
 	}
@@ -95,7 +95,7 @@ HRESULT FakeID3D7::CreateDevice(REFCLSID rclsid,LPDIRECTDRAWSURFACE7 lpDDS,LPDIR
 
 	if (hResult == DD_OK && (GetCurrProfileDWord(PO_RADEON_5700) & FIX_FLG_R5700_FLICKERING_MODELS))
 	{
-		logf("Radeon 5700 compatibility mode is enabled");
+		LogPrintF("Radeon 5700 compatibility mode is enabled");
 		
 		DWORD* pOrigTable = (DWORD*)*(DWORD*)*lplpD3DDevice; // VX: 87 full table	
 		

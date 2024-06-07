@@ -589,7 +589,7 @@ class ILTCSBase
 {
 public:
 
-	virtual DWORD StartHMessageWrite()=0;
+	virtual DWORD StartHMessageWrite() = 0;
 	// More stuff there
 
 //protected:
@@ -612,6 +612,9 @@ typedef char* (__stdcall *ILTCSBase_GetVarValueString_type)(DWORD hVar);
 typedef float (__fastcall *ILTCSBase_GetTime_type)(ILTCSBase* pBase);
 typedef float (__fastcall *ILTCSBase_GetFrameTime_type)(ILTCSBase* pBase);
 
+typedef DWORD (__fastcall *ILTServer_StartMessage_type)(ILTCSBase* pServer, void* notUsed, DWORD hSendTo, BYTE nMsgID);
+typedef DWORD (__fastcall *ILTServer_EndMessage2_type)(ILTCSBase* pServer, void* notUsed, DWORD hMessage, DWORD dwFlags);
+
 typedef void (__fastcall *IClientShell_PreLoadWorld_type)(void* pShell, void* notUsed, char *pWorldName);
 typedef void (__fastcall *IClientShell_Update_type)(void* pShell);
 typedef void (__fastcall *IServerShell_Update_type)(void* pShell, float timeElapsed);
@@ -629,6 +632,9 @@ extern float (__stdcall *ILTCSBase_GetVarValueFloat)(DWORD hVar);
 extern char* (__stdcall *ILTCSBase_GetVarValueString)(DWORD hVar);
 extern float (__fastcall *ILTCSBase_GetTime)(ILTCSBase* pBase);
 extern float (__fastcall *ILTCSBase_GetFrameTime)(ILTCSBase* pBase);
+
+extern DWORD (__fastcall *ILTServer_StartMessage)(ILTCSBase* pServer, void* notUsed, DWORD hSendTo, BYTE nMsgID);
+extern DWORD (__fastcall *ILTServer_EndMessage2)(ILTCSBase* pServer, void* notUsed, DWORD hMessage, DWORD dwFlags);
 
 extern void (__fastcall *IClientShell_PreLoadWorld)(void* pShell, void* notUsed, char *pWorldName);
 extern void (__fastcall *IClientShell_Update)(void* pShell);
@@ -774,6 +780,40 @@ public:
 };
 
 extern ILTServer* g_pLTServer;
+
+class ILTMessage
+{
+public:
+
+	virtual DWORD	Release()=0;	
+	virtual char*	ReadString() = 0;
+
+	virtual DWORD	ReadByteFL(BYTE& val) = 0;
+	virtual DWORD	ReadWordFL(WORD& val) = 0;
+	virtual DWORD	ReadDWordFL(DWORD& val) = 0;
+	virtual DWORD	ReadFloatFL(float &val) = 0;
+	virtual DWORD	ReadStringFL(char *pData, DWORD dwMaxBytes) = 0;
+	virtual DWORD	ReadHStringFL(DWORD& hString) = 0;
+		
+	virtual DWORD	ReadHStringAsStringFL(char *pMsg, DWORD dwMsgBuffSize) = 0;
+		
+	virtual DWORD	ReadRawFL(void *pData, DWORD dwLen) = 0;
+	virtual DWORD	ReadVectorFL(LTVector& vec) = 0;
+	virtual DWORD	ReadCompVectorFL(LTVector& vec) = 0;
+	virtual DWORD	ReadCompPosFL(LTVector& vec) = 0;
+	virtual DWORD	ReadRotationFL(LTRotation& rot)= 0;
+	virtual DWORD	ReadCompRotationFL(LTRotation& rot) = 0;
+	virtual DWORD	ReadMessageFL(ILTMessage*& pMsg) = 0;
+
+	virtual DWORD	ReadObjectFL(DWORD& hObj) = 0;
+			
+	virtual DWORD	WriteByte(BYTE val) = 0;
+	virtual DWORD	WriteWord(WORD val) = 0;
+	virtual DWORD	WriteDWord(DWORD val) = 0;
+	virtual DWORD	WriteFloat(float val) = 0;
+
+	// More there
+};
 
 /*class CClientMgr
 {	
@@ -944,7 +984,8 @@ BOOL SectionItemExists(char* szSection, char* szKey);
 BOOL GetSectionString(char* szSection, char* szKey, char* szValue);
 int GetSectionInt(char* szSection, char* szKey, int nDefault);
 float GetSectionFloat(char* szSection, char* szKey, float fDefault);
-void logf(char *msg, ...);
+void LogPrintF(char *msg, ...);
+void LogPrintF_Raw(char *msg, ...);
 BOOL FileExists(char* szName);
 
 void SetCurrProfileDWord(eProfileOption eOption, DWORD dwSet);

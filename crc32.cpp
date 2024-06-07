@@ -78,6 +78,10 @@ DWORD CalcStreamCRC(ILTStream* pStream)
 	dwCRC32 = CalcDataCRC((BYTE*)pData, dwSize);
 	
 	free(pData);
+
+#ifdef _DEBUG
+	LogPrintF_Raw("\nCRC32Debug: Size = %d, CRC32 = %08X", dwSize, dwCRC32);
+#endif
 	
 	return dwCRC32;
 }

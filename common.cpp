@@ -114,6 +114,9 @@ char* (__stdcall *ILTCSBase_GetVarValueString)(DWORD hVar);
 float (__fastcall *ILTCSBase_GetTime)(ILTCSBase* pBase);
 float (__fastcall *ILTCSBase_GetFrameTime)(ILTCSBase* pBase);
 
+DWORD (__fastcall *ILTServer_StartMessage)(ILTCSBase* pServer, void* notUsed, DWORD hSendTo, BYTE nMsgID);
+DWORD (__fastcall *ILTServer_EndMessage2)(ILTCSBase* pServer, void* notUsed, DWORD hMessage, DWORD dwFlags);
+
 void (__fastcall *IClientShell_PreLoadWorld)(void* pShell, void* notUsed, char *pWorldName);
 void (__fastcall *IClientShell_Update)(void* pShell);
 
@@ -291,7 +294,7 @@ void FontList_Clear(BOOL bDeleteSurfaces)
 	}
 	
 	//int a = g_FontList.size();
-	logf("Font list size on destruction = %d", g_FontList.size());
+	LogPrintF("Font list size on destruction = %d", g_FontList.size());
 	FontList::iterator iter = g_FontList.begin();
 	
 	while (true)
@@ -301,7 +304,7 @@ void FontList_Clear(BOOL bDeleteSurfaces)
 		
 		Font* pItem = *iter;
 
-		logf("Font's string list (%08X) size on destruction = %d", &pItem->m_StringList, pItem->m_StringList.size());
+		LogPrintF("Font's string list (%08X) size on destruction = %d", &pItem->m_StringList, pItem->m_StringList.size());
 		if (pItem->m_StringList.size())
 		{
 			FontStringList::iterator string_iter = pItem->m_StringList.begin();
@@ -312,7 +315,7 @@ void FontList_Clear(BOOL bDeleteSurfaces)
 				
 				FontString* pString = *string_iter;
 				//logf(0, LTRACE, "[%08X] %s (%d)", pString->m_hSurface, pString->m_szString, pString->m_pLines ? pString->m_pLines->size() : -1);
-				logf("[%08X] %s", pString->m_hSurface, pString->m_szString);
+				LogPrintF("[%08X] %s", pString->m_hSurface, pString->m_szString);
 
 				if (bDeleteSurfaces /*&& pString->m_hSurface*/)
 				{
@@ -372,7 +375,7 @@ void EngineHack_WriteData(LPVOID lpAddr, BYTE* pNew, BYTE* pOld, DWORD dwSize)
 	void* pContent = (DWORD*)lpAddr;
 	
 	if (!VirtualProtect(lpAddr, dwSize, PAGE_EXECUTE_READWRITE, &dwOldProtect))
-		logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
+		LogPrintF("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 	
 	memcpy(pOld, pContent, dwSize);
 	memcpy(pContent, pNew, dwSize);
@@ -386,7 +389,7 @@ void EngineHack_WriteFunction(LPVOID lpAddr, DWORD dwNew, DWORD& dwOld)
 	DWORD* dwContent = (DWORD*)lpAddr;
 	
 	if (!VirtualProtect(lpAddr, 4, PAGE_EXECUTE_READWRITE, &dwOldProtect))
-		logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
+		LogPrintF("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 
 	dwOld = dwContent[0];
 	dwContent[0] = dwNew;
@@ -403,7 +406,7 @@ void EngineHack_WriteCall(LPVOID lpAddr, DWORD dwNew, BOOL bStructCall)
 	if (bStructCall)
 	{
 		if (!VirtualProtect(lpAddr, 6, PAGE_EXECUTE_READWRITE, &dwOldProtect))
-			logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
+			LogPrintF("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 		
 		pContent[0] = 0xE8; 
 		pCodeContent[0] = dwCallCode;
@@ -414,7 +417,7 @@ void EngineHack_WriteCall(LPVOID lpAddr, DWORD dwNew, BOOL bStructCall)
 	else
 	{
 		if (!VirtualProtect(lpAddr, 5, PAGE_EXECUTE_READWRITE, &dwOldProtect))
-			logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
+			LogPrintF("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 		
 		pContent[0] = 0xE8; 
 		pCodeContent[0] = dwCallCode;
@@ -428,7 +431,7 @@ void EngineHack_AllowWrite(LPVOID lpAddr, DWORD dwSize)
 	DWORD dwOldProtect;	
 
 	if (!VirtualProtect(lpAddr, dwSize, PAGE_EXECUTE_READWRITE, &dwOldProtect))
-		logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
+		LogPrintF("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 }
 
 void EngineHack_WriteJump(LPVOID lpAddr, DWORD dwNew)
@@ -440,7 +443,7 @@ void EngineHack_WriteJump(LPVOID lpAddr, DWORD dwNew)
 	
 	
 	if (!VirtualProtect(lpAddr, 5, PAGE_EXECUTE_READWRITE, &dwOldProtect))
-		logf("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
+		LogPrintF("VirtualProtect fails on address = %08X, error = %08X", lpAddr, GetLastError());
 	
 	pContent[0] = 0xE9; 
 	pCodeContent[0] = dwCallCode;
@@ -798,7 +801,7 @@ BOOL ParseCVarProfile(char* szData)
 	char* szExpectedVersion = aTempProfileOptions[GEN_FIX_VERSION].GetString();
 	if (strcmp(szVersion, szExpectedVersion))
 	{
-		logf("Version <> ExpectedVersion, %s <> %s", szVersion, szExpectedVersion);
+		LogPrintF("Version <> ExpectedVersion, %s <> %s", szVersion, szExpectedVersion);
 		memcpy(g_ProfileOptions, aTempProfileOptions, sizeof(ProfileOption) * PO_MAX);
 		return FALSE;
 	}
@@ -826,16 +829,16 @@ char* ParseCacheString(char* szString, DWORD& dwType)
 
 void LogCurrProfile()
 {
-	logf("Profile = %s", g_szProfile);
+	LogPrintF("Profile = %s", g_szProfile);
 	
 	for (int i = 0; i < PO_MAX ; i++)
 	{
 		switch (g_ProfileOptions[i].eType)
 		{
-			case POT_BYTE: logf("%s = %d", g_ProfileOptions[i].szName, g_ProfileOptions[i].bValue); break;
-			case POT_FLOAT: logf("%s = %f", g_ProfileOptions[i].szName, g_ProfileOptions[i].fValue); break;
-			case POT_STRING: logf("%s = %s", g_ProfileOptions[i].szName, g_ProfileOptions[i].szValue); break;
-			case POT_DWORD: logf("%s = %d", g_ProfileOptions[i].szName, g_ProfileOptions[i].dwValue); break;
+			case POT_BYTE: LogPrintF("%s = %d", g_ProfileOptions[i].szName, g_ProfileOptions[i].bValue); break;
+			case POT_FLOAT: LogPrintF("%s = %f", g_ProfileOptions[i].szName, g_ProfileOptions[i].fValue); break;
+			case POT_STRING: LogPrintF("%s = %s", g_ProfileOptions[i].szName, g_ProfileOptions[i].szValue); break;
+			case POT_DWORD: LogPrintF("%s = %d", g_ProfileOptions[i].szName, g_ProfileOptions[i].dwValue); break;
 		}
 	}
 
@@ -847,7 +850,7 @@ void LogCurrProfile()
 			break;
 
 		WorldListItem* pItem = *iter1;
-		logf("TWMDetailTex_WorldList[%d] = %s", i, pItem->m_szWorldName);
+		LogPrintF("TWMDetailTex_WorldList[%d] = %s", i, pItem->m_szWorldName);
 
 		iter1++;
 		i++;
@@ -861,20 +864,31 @@ void LogCurrProfile()
 			break;
 		
 		FilenameItem* pItem = *iter2;
-		logf("SolidDrawingWhitelist[%d] = %s", i, pItem->m_szFilename);
+		LogPrintF("SolidDrawingWhitelist[%d] = %s", i, pItem->m_szFilename);
 		
 		iter2++;
 		i++;
 	}
 }
 
-void logf(char *msg, ...)
+void LogPrintF(char *msg, ...)
 {	
 	SYSTEMTIME now;
 	GetLocalTime(&now);
 	va_list argp;
 	
 	fprintf(g_LogFile,"\n[%02d:%02d:%02d.%03d] ", now.wHour, now.wMinute, now.wSecond, now.wMilliseconds);
+	va_start(argp, msg);
+	vfprintf(g_LogFile, msg, argp);	
+	va_end(argp);
+	
+	fflush(g_LogFile);
+}
+
+void LogPrintF_Raw(char *msg, ...)
+{	
+	va_list argp;
+
 	va_start(argp, msg);
 	vfprintf(g_LogFile, msg, argp);	
 	va_end(argp);

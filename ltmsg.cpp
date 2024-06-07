@@ -279,7 +279,7 @@ void ReadConfig(char* szFilename, char* szExtFilename, char* szProfile)
 		if (!ParseCVarProfile(szProfileEx))
 		{
 			g_bCVarProfileIgnored = TRUE;
-			logf("WARNING! CVar profile is ignored (D3D7Fix version differs)");
+			LogPrintF("WARNING! CVar profile is ignored (D3D7Fix version differs)");
 		}
 	}
 
@@ -343,7 +343,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 void ApplyIntelHD_RHW_Fix()
 {
 	DWORD dwDLLAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
-	logf("Applying IntelHD RHW fix");
+	LogPrintF("Applying IntelHD RHW fix");
 	
 	float fIntelHDFix = 0.5f;
 	TLVertex* pVert = (TLVertex*)(dwDLLAddress + ADDR_D3D_LIGHTADD_POLY_RHW); // 0x58500
@@ -406,7 +406,7 @@ void MyRunConsoleString(char *pString)
 
 void ApplyRawMouseInput_Fix()
 {
-	logf("Registering raw mouse input = %d", RegisterRawMouseDevice());
+	LogPrintF("Registering raw mouse input = %d", RegisterRawMouseDevice());
 
 	OldGetAxisOffsets = g_pLTClient->GetAxisOffsets;
 	g_pLTClient->GetAxisOffsets = MyGetAxisOffsets;
@@ -429,7 +429,7 @@ void MySetCameraFOV(DWORD hObj, float fovX, float fovY)
 
 void ApplyCameraFOV_Fix()
 {	
-	logf("Applying camera FOV fix");
+	LogPrintF("Applying camera FOV fix");
 
 	OldSetCameraFOV = g_pLTClient->SetCameraFOV;
 	g_pLTClient->SetCameraFOV = MySetCameraFOV;
@@ -455,7 +455,7 @@ FSLines::iterator g_MultiLinesIter = NULL;
 
 void ClearMultiLinesHolder()
 {
-	logf("Multi-lines holder size on destruction = %d (iter = %08X)", g_MultiLines.size(), g_MultiLinesIter);
+	LogPrintF("Multi-lines holder size on destruction = %d (iter = %08X)", g_MultiLines.size(), g_MultiLinesIter);
 	g_MultiLines.clear();
 }
 
@@ -674,7 +674,7 @@ DWORD MyCreateSurfaceFromBitmap(char* pBitmapName)
 
 void ApplySolidDrawing_Fix()
 {
-	logf("Applying solid drawing fix");
+	LogPrintF("Applying solid drawing fix");
 
 	OldDrawSurfaceSolidColor = g_pLTClient->DrawSurfaceSolidColor;
 	g_pLTClient->DrawSurfaceSolidColor = MyDrawSurfaceSolidColor;
@@ -692,7 +692,7 @@ void ApplySolidDrawing_Fix()
 
 	if (GetCurrProfileBool(PO_SOLID_DRAWING_WHITELIST))
 	{
-		logf("Applying solid drawing whitelist fix");
+		LogPrintF("Applying solid drawing whitelist fix");
 
 		OldCreateSurfaceFromBitmap = g_pLTClient->CreateSurfaceFromBitmap;
 		g_pLTClient->CreateSurfaceFromBitmap = MyCreateSurfaceFromBitmap;
@@ -1032,7 +1032,7 @@ BOOL __stdcall MyDIEnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVOID pvRef)
 		return DIENUM_CONTINUE;
 	}*/
 	
-	logf("DirectInput mouse/keyboard device \"%s\" [%d]", lpddi->tszInstanceName, anDevType[0]);
+	LogPrintF("DirectInput mouse/keyboard device \"%s\" [%d]", lpddi->tszInstanceName, anDevType[0]);
 	return DIEnumDevicesCallback(lpddi, pvRef);
 }
 
@@ -1151,7 +1151,7 @@ void __fastcall MyIServerShell_Update(void* pShell, float timeElapsed)
 			if (g_dwClientDataLen && g_dwClientDataLen != dwDataLen)
 			{
 				sprintf(szBuffer, "[EXT] BanMgr: Client has invalid client data size (%d != %d) [IServerShell_Update]", dwDataLen, g_dwClientDataLen);
-				logf(szBuffer + 6);
+				LogPrintF(szBuffer + 6);
 				ILTCSBase_CPrint(g_pLTServer, szBuffer);
 
 				g_pLTServer->KickClient(hCurrClient);
@@ -1168,7 +1168,7 @@ void __fastcall MyIServerShell_Update(void* pShell, float timeElapsed)
 			if (eReason != BAN_REASON_NONE)
 			{		
 				sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s - %s - %d) [IServerShell_Update]", szName, szIP, szID, g_aszBanReasons[eReason], nCount);
-				logf(szBuffer + 6);
+				LogPrintF(szBuffer + 6);
 				ILTCSBase_CPrint(g_pLTServer, szBuffer);
 
 				g_pLTServer->KickClient(hCurrClient);
@@ -1195,7 +1195,7 @@ void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD h
 		if (g_dwClientDataLen != dwDataLen)
 		{
 			sprintf(szBuffer, "[EXT] BanMgr: Client has invalid client data size (%d != %d) [VerifyClient]", dwDataLen, g_dwClientDataLen);
-			logf(szBuffer + 6);
+			LogPrintF(szBuffer + 6);
 			ILTCSBase_CPrint(g_pLTServer, szBuffer);
 			SendMessageFromServerApp(BAN_MGR_CLIENT_REJECTED);
 
@@ -1225,7 +1225,7 @@ void __fastcall MyIServerShell_VerifyClient(void* pShell, void* notUsed, DWORD h
 			sprintf(szBuffer, "[EXT] BanMgr: %s (%s - %s - %d) is good to go!", szName, szIP, szID, nCount);
 		}
 
-		logf(szBuffer + 6);
+		LogPrintF(szBuffer + 6);
 		ILTCSBase_CPrint(g_pLTServer, szBuffer);
 	}
 }
@@ -1358,7 +1358,7 @@ DWORD __fastcall MyMultiplaterMgr_OnInfoQuery(void* pMPMgr)
 
 void ApplyGSResponse_Ext()
 {
-	logf("Applying GS response extension");
+	LogPrintF("Applying GS response extension");
 	
 	DWORD dwOld;
 	DWORD dwDllAddress = (DWORD)g_pClassMgr->m_pClassMgr->m_pShellModule->m_pModule->m_hInstance;
@@ -1391,8 +1391,9 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 	ILTCSBase_GetTime = (ILTCSBase_GetTime_type)pOrigTable[V_CSBASE_GET_TIME]; // 53
 	ILTCSBase_GetFrameTime = (ILTCSBase_GetFrameTime_type)pOrigTable[V_CSBASE_GET_FRAME_TIME]; // 54
 
-	ILTServer_GetClientData = (ILTServer_GetClientData_type)pOrigTable[V_SERVER_GET_CLIENT_DATA]; // 124	
-
+	ILTServer_GetClientData = (ILTServer_GetClientData_type)pOrigTable[V_SERVER_GET_CLIENT_DATA]; // 124
+	ILTServer_StartMessage = (ILTServer_StartMessage_type)pOrigTable[V_SERVER_START_MESSAGE];
+	ILTServer_EndMessage2 = (ILTServer_EndMessage2_type)pOrigTable[V_SERVER_END_MESSAGE2];
 	
 	if (GetCurrProfileBool(PO_TIME_CALIBRATION))
 		ApplyTimeCalibrationDS_Fix();
@@ -1437,7 +1438,7 @@ DWORD MyLoadServerBinaries(CClassMgr *pClassMgr)
 
 void HookDSStuff1()
 {
-	logf("Hooking DS stuff #1");
+	LogPrintF("Hooking DS stuff #1");
 
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
 
@@ -1484,8 +1485,8 @@ __declspec(naked) void DIEnumDevicesTwice()
 
 void HookEngineStuff1()
 {
-	logf(APP_NAME, APP_VERSION);
-	logf("Hooking engine stuff #1");
+	LogPrintF(APP_NAME, APP_VERSION);
+	LogPrintF("Hooking engine stuff #1");
 	
 	DWORD dwRead;
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
@@ -1508,7 +1509,7 @@ void HookEngineStuff1()
 	}
 	else
 	{
-		logf("DirectInput hooks are disabled!");
+		LogPrintF("DirectInput hooks are disabled!");
 	}
 
 #ifdef PRIMAL_HUNT_BUILD
@@ -1553,7 +1554,7 @@ DWORD __fastcall MyILTLightAnim_SetLightAnimInfo(ILTLightAnim* pInterface, void*
 
 void HookEngineStuff2()
 {
-	logf("Hooking engine stuff #2");
+	LogPrintF("Hooking engine stuff #2");
 
 	DWORD dwRead;
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
@@ -1670,7 +1671,7 @@ void HookEngineStuff2()
 
 void ApplyLightLoad_Fix()
 {
-	logf("Applying light load fix");
+	LogPrintF("Applying light load fix");
 
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
 	//DWORD dwRenderStruct = dwDllAddress + 0x58470;
@@ -1734,7 +1735,7 @@ __declspec(naked) void My_sub_3F0A2A7_OtherTWM_Wrapper()
 
 void ApplyTWMDetailTex_Fix()
 {
-	logf("Applying TWM detail textures fix");
+	LogPrintF("Applying TWM detail textures fix");
 
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
 	g_dwD3DBaseAddr = dwDllAddress;
@@ -1807,7 +1808,7 @@ void My_dsi_ClientSleep(DWORD dwMilliseconds)
 
 void ApplyTimeCalibration_Fix()
 {
-	logf("Applying time calibration fix");
+	LogPrintF("Applying time calibration fix");
 
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);
 
@@ -1830,7 +1831,7 @@ void ApplyTimeCalibration_Fix()
 
 void ApplyFastCRCCheckDS_Fix()
 {
-	logf("Applying DS fast CRC32 check fix");
+	LogPrintF("Applying DS fast CRC32 check fix");
 	
 	DWORD dwOld;
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
@@ -1841,7 +1842,7 @@ void ApplyFastCRCCheckDS_Fix()
 
 void ApplyUpdateProgDamageCrash_Fix()
 {
-	logf("Applying UpdateProgressiveDamage crash fix");
+	LogPrintF("Applying UpdateProgressiveDamage crash fix");
 
 	DWORD dwDllAddress = (DWORD)g_pClassMgr->m_pClassMgr->m_pShellModule->m_pModule->m_hInstance;
 	BYTE anOld[4];
@@ -1852,7 +1853,7 @@ void ApplyUpdateProgDamageCrash_Fix()
 
 void ApplyTimeCalibrationDS_Fix()
 {
-	logf("Applying DS time calibration fix");
+	LogPrintF("Applying DS time calibration fix");
 
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
 
@@ -1894,7 +1895,7 @@ void ReadAndApplyExtraCacheList()
 			{
 				
 				if (g_pLTServer->CacheFile(dwType, szFilename))
-					logf("Fail to cache '%s' [%d]", szFilename, dwType);
+					LogPrintF("Fail to cache '%s' [%d]", szFilename, dwType);
 			}
 			
 			i += 2;
@@ -1925,7 +1926,7 @@ DWORD MyGetServerFlags()
 
 void ApplyExtraCacheListDS_Fix()
 {
-	logf("Applying DS extra cache list fix");
+	LogPrintF("Applying DS extra cache list fix");
 	
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(SERVER_DLL);
@@ -1944,7 +1945,7 @@ DWORD MyFlipScreen(DWORD flags)
 
 void ApplyFlipScreen_Fix()
 {
-	logf("Applying flip screen fix");
+	LogPrintF("Applying flip screen fix");
 	
 	if (g_pLTClient->FlipScreen != MyFlipScreen)
 	{
@@ -1955,7 +1956,7 @@ void ApplyFlipScreen_Fix()
 
 void ApplyDynamicLightSurfaces_Fix()
 {
-	logf("Applying dynamic light surfaces fix");
+	LogPrintF("Applying dynamic light surfaces fix");
 	
 	HANDLE hProcess = GetCurrentProcess();
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
@@ -1995,7 +1996,7 @@ DWORD My_r_AddToLMPage(void* pContext, WorldPoly* pPoly)
 
 void ApplyStaticLightSurfaces_Fix()
 {
-	logf("Applying static light surfaces fix");
+	LogPrintF("Applying static light surfaces fix");
 	
 	BYTE anOld[32];
 	DWORD dwDllAddress = (DWORD)GetModuleHandle(GetCurrProfileString(PO_RENDER_DLL));
@@ -2076,7 +2077,7 @@ DWORD __stdcall SharedCommonLT_GetCRC_Srv(ILTStream* pStream, DWORD& dwCRC32)
 
 void ApplyFastCRCCheck_Fix()
 {
-	logf("Applying fast CRC32 check fix");
+	LogPrintF("Applying fast CRC32 check fix");
 
 	DWORD dwOld;
 	DWORD dwExeAddress = (DWORD)GetModuleHandle(LITHTECH_EXE);

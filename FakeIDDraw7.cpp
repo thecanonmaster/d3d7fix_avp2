@@ -179,13 +179,13 @@ ULONG __stdcall FakeIDDraw7::Release(void)
 
 	if (dwCount == 0) 
 	{
-		logf("FakeIDDraw7::Release - release success");
+		LogPrintF("FakeIDDraw7::Release - release success");
 		m_pIDDraw = NULL;		
 		delete(this); 
 	}
 	else
 	{
-		logf("FakeIDDraw7::Release - release failed, reference count = %d", dwCount);
+		LogPrintF("FakeIDDraw7::Release - release failed, reference count = %d", dwCount);
 		m_pIDDraw = NULL;		
 		delete(this); 
 	}
@@ -276,7 +276,7 @@ HRESULT  __stdcall FakeIDDraw7::CreateSurface(LPDDSURFACEDESC2 lpDDSurfaceDesc2,
 			compatDesc.ddpfPixelFormat = displayDesc.ddpfPixelFormat; 
 
 			HRESULT hCompatResult = m_pIDDraw->CreateSurface(&compatDesc, &pCompatSurface, pUnkOuter);
-			logf("Compatibility primary surface creation result = %08x", hCompatResult);
+			LogPrintF("Compatibility primary surface creation result = %08x", hCompatResult);
 		}
 		
 		*lplpDDSurface = new FakeIDDrawSurface7Prime(*lplpDDSurface, pCompatSurface);
@@ -385,11 +385,11 @@ HRESULT  __stdcall FakeIDDraw7::SetCooperativeLevel(HWND hWnd, DWORD dwFlags)
 		if (lResult)
 		{
 			OldWindowProc = (WindowProc_type_ptr)lResult;
-			logf("WindowProc hook set! (%08X -> %08X)", lResult, (LONG)NewWindowProc);
+			LogPrintF("WindowProc hook set! (%08X -> %08X)", lResult, (LONG)NewWindowProc);
 		}
 		else
 		{
-			logf("Could not set WindowProc hook!");
+			LogPrintF("Could not set WindowProc hook!");
 		}
 
 		g_bWindowHooked = TRUE;
@@ -404,7 +404,7 @@ HRESULT  __stdcall FakeIDDraw7::SetDisplayMode(DWORD a, DWORD b, DWORD c, DWORD 
 {
 	g_dwWidth = a;
 	g_dwHeight = b;
-	logf("FakeIDDraw7::SetDisplayMode - %d x %d", g_dwWidth, g_dwHeight);
+	LogPrintF("FakeIDDraw7::SetDisplayMode - %d x %d", g_dwWidth, g_dwHeight);
 
 	HRESULT h = m_pIDDraw->SetDisplayMode(a, b, c, d, e);
 	return(h); 
